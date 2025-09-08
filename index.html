@@ -4,103 +4,137 @@
   <meta charset="utf-8" />
   <title>Area Bid Helper (Test Version)</title>
   <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <!-- Mapbox GL & Draw -->
   <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet" />
   <link href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-draw/v1.5.0/mapbox-gl-draw.css" rel="stylesheet" />
+  <!-- Geocoder (address search) -->
+  <link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v4.7.2/mapbox-gl-geocoder.css" type="text/css"/>
   <style>
-    body { margin: 0; padding: 0; }
-    #map { position: absolute; top: 0; bottom: 0; width: 100%; }
-    .info-box {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      background: white;
-      padding: 10px;
-      z-index: 10;
-      font-family: sans-serif;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-      border-radius: 5px;
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+    #map { position: absolute; inset: 0; }
+    .panel {
+      position: absolute; top: 10px; left: 10px; z-index: 10;
+      background: #fff; padding: 10px 12px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.18);
+      min-width: 240px;
     }
-    .info-box button { margin-top: 5px; display: block; }
+    .panel .row { margin-top: 6px; }
+    .panel button { margin-top: 6px; width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid #ddd; background:#f8f8f8; cursor:pointer; }
+    .panel button:hover { background:#f0f0f0; }
+    .token-warning{ position:absolute; bottom:10px; left:10px; z-index:10; background:#fff3cd; color:#5c3c00; padding:8px 10px; border-radius:8px; border:1px solid #ffe69c; display:none; }
+    .mapboxgl-ctrl-top-left { margin-top: 80px; } /* Push draw controls below geocoder */
   </style>
 </head>
 <body>
-<div id="map"></div>
-<div class="info-box">
-  <div id="output">Draw a shape to see area & perimeter</div>
-  <button onclick="downloadImage()">Download Snapshot</button>
-  <button onclick="downloadData()">Download Data</button>
-</div>
+  <div id="map"></div>
 
-<script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
-<script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-draw/v1.5.0/mapbox-gl-draw.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+  <div class="panel">
+    <div id="output"><strong>Draw a polygon</strong> to see area & perimeter (use the ✏️ control on the map).</div>
+    <div class="row"><button id="btn-image">Download Snapshot</button></div>
+    <div class="row"><button id="btn-data">Download Data (JSON)</button></div>
+  </div>
 
-<script>
-  mapboxgl.accessToken = 'pk.eyJ1Ijoic2VhbG5zdHJpcGVuc3BlY2lhbGlzdCIsImEiOiJjbWZhYm5lNXgxNTh1MmtuMTB4ejV6M3dsIn0.xsRAPKrVTwtxgFzoWfyB5g'; // replace with your token
+  <div class="token-warning" id="tokenWarn">⚠️ Map token missing/blocked. Add a valid Mapbox token and allow your <em>.vercel.app</em> domain.</div>
 
-  const map = new mapboxgl.Map({
-    container: 'map',
-    style: 'mapbox://styles/mapbox/satellite-streets-v12',
-    center: [-98.5795, 39.8283], // USA center
-    zoom: 4
-  });
+  <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
+  <script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-draw/v1.5.0/mapbox-gl-draw.js"></script>
+  <script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v4.7.2/mapbox-gl-geocoder.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
 
-  const draw = new MapboxDraw({
-    displayControlsDefault: false,
-    controls: { polygon: true, trash: true },
-    defaultMode: 'draw_polygon'
-  });
-  map.addControl(draw);
+  <script>
+    // 1) TOKEN: set your public token here (starts with "pk").
+    //    For testing on Vercel, ensure the token's URL restrictions include your .vercel.app domain.
+    mapboxgl.accessToken = 'YOUR_PUBLIC_MAPBOX_TOKEN_HERE';
 
-  map.on('draw.create', updateMeasurements);
-  map.on('draw.update', updateMeasurements);
-  map.on('draw.delete', () => {
-    document.getElementById('output').innerHTML = 'Draw a shape to see area & perimeter';
-  });
-
-  function updateMeasurements() {
-    const data = draw.getAll();
-    if (data.features.length > 0) {
-      const polygon = data.features[0];
-      const area = turf.area(polygon);
-      const perimeter = turf.length(polygon, { units: 'feet' }) * 5280;
-
-      document.getElementById('output').innerHTML = `
-        Area: ${area.toFixed(2)} sq ft<br>
-        Perimeter: ${perimeter.toFixed(2)} ft
-      `;
+    // Warn if token is not set
+    if (!mapboxgl.accessToken || mapboxgl.accessToken.includes('YOUR_PUBLIC_MAPBOX_TOKEN_HERE')) {
+      document.getElementById('tokenWarn').style.display = 'block';
     }
-  }
 
-  function downloadImage() {
-    map.getCanvas().toBlob(blob => {
+    // 2) Create map
+    const map = new mapboxgl.Map({
+      container: 'map',
+      style: 'mapbox://styles/mapbox/satellite-streets-v12',
+      center: [-98.5795, 39.8283], // USA center
+      zoom: 4,
+      preserveDrawingBuffer: true // improves snapshot reliability
+    });
+
+    // 3) Add Geocoder (address search)
+    const geocoder = new MapboxGeocoder({
+      accessToken: mapboxgl.accessToken,
+      mapboxgl: mapboxgl,
+      marker: false,
+      placeholder: 'Search address or place'
+    });
+    map.addControl(geocoder, 'top-left');
+
+    // 4) Draw controls
+    const draw = new MapboxDraw({
+      displayControlsDefault: false,
+      controls: { polygon: true, trash: true },
+      defaultMode: 'draw_polygon'
+    });
+    map.addControl(draw, 'top-left');
+
+    map.on('draw.create', updateMeasurements);
+    map.on('draw.update', updateMeasurements);
+    map.on('draw.delete', () => {
+      document.getElementById('output').innerHTML = '<strong>Draw a polygon</strong> to see area & perimeter (use the ✏️ control on the map).';
+    });
+
+    function updateMeasurements () {
+      const data = draw.getAll();
+      if (data.features.length) {
+        const polygon = data.features[0];
+
+        // Area comes in square meters; convert to square feet
+        const areaSqMeters = turf.area(polygon);
+        const areaSqFt = areaSqMeters * 10.76391041671;
+
+        // Perimeter: use miles then convert to feet
+        const perimeterMiles = turf.length(polygon, { units: 'miles' });
+        const perimeterFeet = perimeterMiles * 5280;
+
+        document.getElementById('output').innerHTML = `
+          <div><strong>Area:</strong> ${areaSqFt.toFixed(2)} sq ft</div>
+          <div><strong>Perimeter:</strong> ${perimeterFeet.toFixed(2)} ft</div>
+        `;
+      }
+    }
+
+    // 5) Snapshot
+    document.getElementById('btn-image').addEventListener('click', () => {
+      map.getCanvas().toBlob(blob => {
+        if (!blob) return alert('Snapshot failed. Try again after map fully loads.');
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = 'area-snapshot.png';
+        link.click();
+      });
+    });
+
+    // 6) Data export
+    document.getElementById('btn-data').addEventListener('click', () => {
+      const data = draw.getAll();
+      if (!data.features.length) return alert('Draw an area first.');
+
+      const polygon = data.features[0];
+      const areaSqFt = turf.area(polygon) * 10.76391041671;
+      const perimeterFeet = turf.length(polygon, { units: 'miles' }) * 5280;
+
+      const exportData = {
+        area_sq_ft: Number(areaSqFt.toFixed(2)),
+        perimeter_ft: Number(perimeterFeet.toFixed(2)),
+        coordinates: polygon.geometry.coordinates
+      };
+
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
-      link.download = 'area-snapshot.png';
+      link.download = 'measurement-data.json';
       link.click();
     });
-  }
-
-  function downloadData() {
-    const data = draw.getAll();
-    if (!data.features.length) return alert("Draw an area first.");
-
-    const polygon = data.features[0];
-    const area = turf.area(polygon);
-    const perimeter = turf.length(polygon, { units: 'feet' }) * 5280;
-
-    const exportData = {
-      area_sq_ft: area,
-      perimeter_ft: perimeter,
-      coordinates: polygon.geometry.coordinates
-    };
-
-    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = 'measurement-data.json';
-    link.click();
-  }
-</script>
+  </script>
 </body>
 </html>
