@@ -29,7 +29,14 @@
   <div id="map"></div>
 
   <div class="panel">
-    <div id="output"><strong>Draw a polygon</strong> to see area & perimeter (use the ✏️ control on the map).</div>
+    <div id="output"><strong>Draw shapes</strong> then see total area & perimeter.</div>
+    <div class="row"><button id="btn-poly">✏️ Polygon Mode</button></div>
+    <div class="row"><button id="btn-rect">▭ Draw Rectangle</button></div>
+    <div class="row"><button id="btn-freehand">~ Freehand Polygon</button></div>
+    <div class="row"><button id="btn-circle">◯ Draw Circle</button></div>
+    <div class="row"><button id="btn-image">Download Snapshot</button></div>
+    <div class="row"><button id="btn-data">Download Data (JSON)</button></div>
+  </div>
     <div class="row"><button id="btn-image">Download Snapshot</button></div>
     <div class="row"><button id="btn-data">Download Data (JSON)</button></div>
   </div>
@@ -77,7 +84,113 @@
     });
     map.addControl(draw, 'top-left');
 
+    // --- Drawing Modes & Helpers ---
+    const setPolygonMode = () => {
+      draw.changeMode('draw_polygon');
+      document.getElementById('output').innerHTML = 'Polygon mode: click to add vertices, double-click to finish.';
+    };
+
+    document.getElementById('btn-poly').addEventListener('click', setPolygonMode);
+
+    // Rectangle: pick two opposite corners
+    document.getElementById('btn-rect').addEventListener('click', () => {
+      document.getElementById('output').innerHTML = 'Rectangle: click first corner, then second corner.';
+      let first = null;
+      const onClick = (e) => {
+        if (!first) {
+          first = [e.lngLat.lng, e.lngLat.lat];
+        } else {
+          const second = [e.lngLat.lng, e.lngLat.lat];
+          const minX = Math.min(first[0], second[0]);
+          const maxX = Math.max(first[0], second[0]);
+          const minY = Math.min(first[1], second[1]);
+          const maxY = Math.max(first[1], second[1]);
+          const rect = {
+            type: 'Feature',
+            properties: {},
+            geometry: {
+              type: 'Polygon',
+              coordinates: [[
+                [minX, minY], [maxX, minY], [maxX, maxY], [minX, maxY], [minX, minY]
+              ]]
+            }
+          };
+          draw.add(rect);
+          map.off('click', onClick);
+          first = null;
+          updateMeasurements();
+        }
+      };
+      map.off('click', onClick); // safety
+      map.on('click', onClick);
+    });
+
+    // Freehand Polygon: press & hold to draw, release to finish
+    let freehand = { active: false, points: [] };
+    const finishFreehand = () => {
+      if (!freehand.active || freehand.points.length < 3) return;
+      // close polygon
+      const coords = freehand.points.slice();
+      coords.push(coords[0]);
+      const poly = { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [coords] } };
+      draw.add(poly);
+      freehand.active = false; freehand.points = [];
+      map.getCanvas().style.cursor = '';
+      updateMeasurements();
+    };
+
+    document.getElementById('btn-freehand').addEventListener('click', () => {
+      document.getElementById('output').innerHTML = 'Freehand: hold mouse button and move to draw; release to finish.';
+      map.getCanvas().style.cursor = 'crosshair';
+      freehand.active = false; freehand.points = [];
+    });
+
+    map.on('mousedown', (e) => {
+      if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
+      // Start freehand only if the freehand button was the last intent
+      if (document.getElementById('output').innerText.startsWith('Freehand')) {
+        freehand.active = true;
+        freehand.points = [[e.lngLat.lng, e.lngLat.lat]];
+      }
+    });
+
+    map.on('mousemove', (e) => {
+      if (!freehand.active) return;
+      const last = freehand.points[freehand.points.length - 1];
+      const curr = [e.lngLat.lng, e.lngLat.lat];
+      // add point if moved enough (~2px)
+      const dx = curr[0] - last[0];
+      const dy = curr[1] - last[1];
+      if (Math.abs(dx) > 0.00002 || Math.abs(dy) > 0.00002) {
+        freehand.points.push(curr);
+      }
+    });
+
+    map.on('mouseup', () => finishFreehand());
+
+    // Circle button was added earlier; keep behavior
+    document.getElementById('btn-circle').addEventListener('click', () => {
+      document.getElementById('output').innerHTML = 'Click a point on the map for the circle center…';
+      map.getCanvas().style.cursor = 'crosshair';
+      map.once('click', (e) => {
+        map.getCanvas().style.cursor = '';
+        const center = [e.lngLat.lng, e.lngLat.lat];
+        const input = prompt('Enter radius (feet):', '50');
+        if (!input) { updateMeasurements(); return; }
+        const radiusFeet = Number(input);
+        if (Number.isNaN(radiusFeet) || radiusFeet <= 0) { alert('Please enter a positive number.'); return; }
+        const radiusMiles = radiusFeet / 5280;
+        const circle = turf.circle(center, radiusMiles, { steps: 128, units: 'miles' });
+        draw.add(circle);
+        updateMeasurements();
+      });
+    });
+
     map.on('draw.create', updateMeasurements);
+    map.on('draw.update', updateMeasurements);
+    map.on('draw.delete', () => {
+      document.getElementById('output').innerHTML = '<strong>Draw shapes</strong> then see total area & perimeter.';
+    });
     map.on('draw.update', updateMeasurements);
     map.on('draw.delete', () => {
       document.getElementById('output').innerHTML = '<strong>Draw a polygon</strong> to see area & perimeter (use the ✏️ control on the map).';
