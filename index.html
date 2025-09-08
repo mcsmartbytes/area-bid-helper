@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Area Bid Helper (Test Version)</title>
+  <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet" />
+  <link href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-draw/v1.5.0/mapbox-gl-draw.css" rel="stylesheet" />
+  <style>
+    body { margin: 0; padding: 0; }
+    #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+    .info-box {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: white;
+      padding: 10px;
+      z-index: 10;
+      font-family: sans-serif;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+      border-radius: 5px;
+    }
+    .info-box button { margin-top: 5px; display: block; }
+  </style>
+</head>
+<body>
+<div id="map"></div>
+<div class="info-box">
+  <div id="output">Draw a shape to see area & perimeter</div>
+  <button onclick="downloadImage()">Download Snapshot</button>
+  <button onclick="downloadData()">Download Data</button>
+</div>
+
+<script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
+<script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-draw/v1.5.0/mapbox-gl-draw.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+
+<script>
+  mapboxgl.accessToken = 'pk.eyJ1Ijoic2VhbG5zdHJpcGVuc3BlY2lhbGlzdCIsImEiOiJjbWZhYm5lNXgxNTh1MmtuMTB4ejV6M3dsIn0.xsRAPKrVTwtxgFzoWfyB5g'; // replace with your token
+
+  const map = new mapboxgl.Map({
+    container: 'map',
+    style: 'mapbox://styles/mapbox/satellite-streets-v12',
+    center: [-98.5795, 39.8283], // USA center
+    zoom: 4
+  });
+
+  const draw = new MapboxDraw({
+    displayControlsDefault: false,
+    controls: { polygon: true, trash: true },
+    defaultMode: 'draw_polygon'
+  });
+  map.addControl(draw);
+
+  map.on('draw.create', updateMeasurements);
+  map.on('draw.update', updateMeasurements);
+  map.on('draw.delete', () => {
+    document.getElementById('output').innerHTML = 'Draw a shape to see area & perimeter';
+  });
+
+  function updateMeasurements() {
+    const data = draw.getAll();
+    if (data.features.length > 0) {
+      const polygon = data.features[0];
+      const area = turf.area(polygon);
+      const perimeter = turf.length(polygon, { units: 'feet' }) * 5280;
+
+      document.getElementById('output').innerHTML = `
+        Area: ${area.toFixed(2)} sq ft<br>
+        Perimeter: ${perimeter.toFixed(2)} ft
+      `;
+    }
+  }
+
+  function downloadImage() {
+    map.getCanvas().toBlob(blob => {
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = 'area-snapshot.png';
+      link.click();
+    });
+  }
+
+  function downloadData() {
+    const data = draw.getAll();
+    if (!data.features.length) return alert("Draw an area first.");
+
+    const polygon = data.features[0];
+    const area = turf.area(polygon);
+    const perimeter = turf.length(polygon, { units: 'feet' }) * 5280;
+
+    const exportData = {
+      area_sq_ft: area,
+      perimeter_ft: perimeter,
+      coordinates: polygon.geometry.coordinates
+    };
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'measurement-data.json';
+    link.click();
+  }
+</script>
+</body>
+</html>
