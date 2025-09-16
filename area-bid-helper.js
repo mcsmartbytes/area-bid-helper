@@ -90,6 +90,10 @@
         <div id="map"></div>
         <div class="panel">
           <div id="output"><strong>Draw shapes</strong> then see total area & perimeter.</div>
+          <div class="row">
+            <input id="addr-input" type="text" placeholder="Search address or place" style="width:100%; padding:8px 10px; border-radius:8px; border:1px solid #ddd;" />
+            <button id="btn-search">🔎 Search</button>
+          </div>
           <div class="row"><button id="btn-poly">✏️ Polygon Mode</button></div>
           <div class="row"><button id="btn-rect">▭ Draw Rectangle</button></div>
           <div class="row"><button id="btn-freehand">~ Freehand Polygon</button></div>
@@ -164,6 +168,7 @@
         placeholder: 'Search address or place'
       });
       this._map.addControl(geocoder, 'top-left');
+      this._geocoder = geocoder;
 
       this._draw = new MapboxDraw({
         displayControlsDefault: false,
@@ -196,6 +201,8 @@
       const btnData = this.shadowRoot.getElementById('btn-data');
       const btnToken = this.shadowRoot.getElementById('btn-token');
       const btnSave = this.shadowRoot.getElementById('btn-save');
+      const addrInput = this.shadowRoot.getElementById('addr-input');
+      const btnSearch = this.shadowRoot.getElementById('btn-search');
 
       btnPoly.addEventListener('click', () => {
         this._draw.changeMode('draw_polygon');
@@ -248,7 +255,9 @@
 
       this._map.on('mousedown', (e) => {
         if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
-        if (this._mode === 'freehand') {
+        const oe = e.originalEvent || e;
+        const shift = !!(oe && oe.shiftKey);
+        if (this._mode === 'freehand' || shift) {
           this._freehand.active = true;
           this._freehand.points = [[e.lngLat.lng, e.lngLat.lat]];
           this._map.dragPan.disable();
@@ -328,6 +337,16 @@
       });
 
       btnSave.addEventListener('click', () => this._saveToSupabase());
+
+      const doSearch = () => {
+        const q = (addrInput && addrInput.value || '').trim();
+        if (!q) return;
+        if (this._geocoder && typeof this._geocoder.query === 'function') {
+          this._geocoder.query(q);
+        }
+      };
+      if (btnSearch) btnSearch.addEventListener('click', doSearch);
+      if (addrInput) addrInput.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') doSearch(); });
 
       this._updateUnitsButton();
     }
