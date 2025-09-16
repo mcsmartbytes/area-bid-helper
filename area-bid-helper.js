@@ -305,7 +305,7 @@
 
       btnToken.addEventListener('click', () => {
         const existing = localStorage.getItem('mapbox_token') || '';
-        const token = prompt('Enter Mapbox public token (starts with pk.):', existing);
+        const token = prompt('pk.eyJ1Ijoic2VhbG5zdHJpcGVuc3BlY2lhbGlzdCIsImEiOiJjbWZtaXE4aW4wMmE5MmpvaWEzMms2MXg3In0.2Py8b4hLtIqzLHVGAo9sYg:', existing);
         if (token != null) {
           localStorage.setItem('mapbox_token', token.trim());
           alert('Token saved. Reload to apply.');
