@@ -11,16 +11,29 @@
   };
 
   function ensureCss(href, root) {
-    const doc = root || document;
-    const existing = Array.from(doc.querySelectorAll('link[rel="stylesheet"]')).find(l => l.href === href);
+    // If a shadow root is provided, inject the stylesheet inside it for proper scoping.
+    if (root && typeof ShadowRoot !== 'undefined' && root instanceof ShadowRoot) {
+      const existing = Array.from(root.querySelectorAll('link[rel="stylesheet"]')).find(l => l.href === href);
+      if (existing) return Promise.resolve();
+      return new Promise((resolve, reject) => {
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = href;
+        link.onload = () => resolve();
+        link.onerror = reject;
+        root.appendChild(link);
+      });
+    }
+    // Otherwise, ensure it exists on the main document head.
+    const existing = Array.from(document.querySelectorAll('link[rel="stylesheet"]')).find(l => l.href === href);
     if (existing) return Promise.resolve();
     return new Promise((resolve, reject) => {
-      const link = doc.createElement('link');
+      const link = document.createElement('link');
       link.rel = 'stylesheet';
       link.href = href;
       link.onload = () => resolve();
       link.onerror = reject;
-      doc.head.appendChild(link);
+      document.head.appendChild(link);
     });
   }
 
@@ -43,9 +56,10 @@
   }
 
   async function ensureDeps(shadowRoot) {
-    await ensureCss(CDN.mapboxCss, document);
-    await ensureCss(CDN.drawCss, document);
-    await ensureCss(CDN.geocoderCss, document);
+    // Inject CSS into the component's shadow root for encapsulated styling
+    await ensureCss(CDN.mapboxCss, shadowRoot);
+    await ensureCss(CDN.drawCss, shadowRoot);
+    await ensureCss(CDN.geocoderCss, shadowRoot);
     await ensureScript(CDN.mapboxJs, 'mapboxgl');
     await ensureScript(CDN.drawJs, 'MapboxDraw');
     await ensureScript(CDN.geocoderJs, 'MapboxGeocoder');
@@ -122,7 +136,8 @@
       // Token: attribute > URL ?token > localStorage > none
       const urlToken = new URLSearchParams(location.search).get('token');
       const saved = localStorage.getItem('mapbox_token');
-      const token = this.getAttribute('token') || urlToken || saved || '';
+      const globalToken = (window && (window.MAPBOX_TOKEN || window.__MAPBOX_TOKEN)) || '';
+      const token = this.getAttribute('token') || urlToken || saved || globalToken || '';
       if (urlToken) localStorage.setItem('mapbox_token', urlToken);
       mapboxgl.accessToken = token;
 
@@ -463,4 +478,3 @@
 
   customElements.define('area-bid-helper', AreaBidHelper);
 })();
-
