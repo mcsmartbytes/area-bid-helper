@@ -75,6 +75,8 @@
       this._targetOrigin = '*';
       this._supabase = null;
       this._table = null;
+      this._currentAddress = ''; // Store searched address
+      this._currentLocation = null; // Store map center
       this.attachShadow({ mode: 'open' });
       this.shadowRoot.innerHTML = `
         <style>
@@ -167,6 +169,13 @@
         marker: false,
         placeholder: 'Search address or place'
       });
+
+      // Capture address when user searches
+      geocoder.on('result', (e) => {
+        this._currentAddress = e.result.place_name || '';
+        this._currentLocation = e.result.center || null;
+      });
+
       this._map.addControl(geocoder, 'top-left');
       this._geocoder = geocoder;
 
@@ -205,12 +214,36 @@
       const btnSearch = this.shadowRoot.getElementById('btn-search');
 
       btnPoly.addEventListener('click', () => {
+        // Cancel any active freehand drawing
+        if (this._freehand.active) {
+          this._freehand.active = false;
+          this._freehand.points = [];
+          this._map.dragPan.enable();
+          if (this._map.getSource('freehand-preview')) {
+            this._map.getSource('freehand-preview').setData({
+              type: 'FeatureCollection',
+              features: []
+            });
+          }
+        }
         this._draw.changeMode('draw_polygon');
         this._mode = 'polygon';
         out.innerHTML = 'Polygon mode: click to add vertices, double-click to finish.';
       });
 
       btnRect.addEventListener('click', () => {
+        // Cancel any active freehand drawing
+        if (this._freehand.active) {
+          this._freehand.active = false;
+          this._freehand.points = [];
+          this._map.dragPan.enable();
+          if (this._map.getSource('freehand-preview')) {
+            this._map.getSource('freehand-preview').setData({
+              type: 'FeatureCollection',
+              features: []
+            });
+          }
+        }
         out.innerHTML = 'Rectangle: click first corner, then second corner.';
         let first = null;
         const onClick = (e) => {
@@ -233,21 +266,51 @@
         this._map.on('click', onClick);
       });
 
-      this._freehand = { active:false, points:[] };
+      this._freehand = { active:false, points:[], tempLayer:null };
       const finishFreehand = () => {
         if (!this._freehand.active || this._freehand.points.length < 3) return;
-        const coords = this._freehand.points.slice();
-        coords.push(coords[0]);
+
+        // Apply smoothing using Turf.js bezierSpline for curved areas like circles
+        let coords = this._freehand.points.slice();
+
+        // Simplify the path to reduce point count while maintaining shape
+        // Higher tolerance = smoother but less precise
+        const tolerance = 0.00005; // Adjust this for smoothness vs precision
+        try {
+          const line = turf.lineString(coords);
+          const simplified = turf.simplify(line, { tolerance, highQuality: true });
+          coords = simplified.geometry.coordinates;
+
+          // Apply bezier curve smoothing if we have enough points
+          if (coords.length >= 3) {
+            const bezierLine = turf.bezierSpline(line, { resolution: 10000, sharpness: 0.5 });
+            coords = bezierLine.geometry.coordinates;
+          }
+        } catch (e) {
+          // If smoothing fails, use original points
+          console.warn('Smoothing failed, using original points:', e);
+        }
+
+        coords.push(coords[0]); // Close the polygon
         const poly = { type:'Feature', properties:{}, geometry:{ type:'Polygon', coordinates:[coords] } };
         this._draw.add(poly);
-        this._freehand.active = false; this._freehand.points = [];
+
+        // Clean up temporary preview layer
+        if (this._freehand.tempLayer && this._map.getLayer('freehand-preview')) {
+          this._map.removeLayer('freehand-preview');
+          this._map.removeSource('freehand-preview');
+          this._freehand.tempLayer = null;
+        }
+
+        this._freehand.active = false;
+        this._freehand.points = [];
         this._map.getCanvas().style.cursor = '';
         this._map.dragPan.enable();
         this._updateMeasurements();
       };
 
       btnFree.addEventListener('click', () => {
-        out.innerHTML = 'Freehand: hold mouse button and move to draw; release to finish.';
+        out.innerHTML = 'Freehand (Smooth): hold mouse button and move to draw; release to finish. Perfect for circles!';
         this._map.getCanvas().style.cursor = 'crosshair';
         this._mode = 'freehand';
         this._freehand.active = false; this._freehand.points = [];
@@ -261,21 +324,73 @@
           this._freehand.active = true;
           this._freehand.points = [[e.lngLat.lng, e.lngLat.lat]];
           this._map.dragPan.disable();
+
+          // Create temporary preview layer for real-time feedback
+          if (!this._map.getSource('freehand-preview')) {
+            this._map.addSource('freehand-preview', {
+              type: 'geojson',
+              data: { type: 'FeatureCollection', features: [] }
+            });
+            this._map.addLayer({
+              id: 'freehand-preview',
+              type: 'line',
+              source: 'freehand-preview',
+              paint: {
+                'line-color': '#3b82f6',
+                'line-width': 3,
+                'line-opacity': 0.8,
+                'line-dasharray': [2, 2]
+              }
+            });
+            this._freehand.tempLayer = true;
+          }
         }
       });
+
       this._map.on('mousemove', (e) => {
         if (!this._freehand.active) return;
         const last = this._freehand.points[this._freehand.points.length - 1];
         const curr = [e.lngLat.lng, e.lngLat.lat];
+
+        // Dynamic threshold based on map zoom level for better precision
+        const zoom = this._map.getZoom();
+        const threshold = 0.00002 * Math.pow(2, 15 - zoom); // Adjust sensitivity with zoom
+
         const dx = curr[0] - last[0];
         const dy = curr[1] - last[1];
-        if (Math.abs(dx) > 0.00002 || Math.abs(dy) > 0.00002) {
+        if (Math.abs(dx) > threshold || Math.abs(dy) > threshold) {
           this._freehand.points.push(curr);
+
+          // Update preview line in real-time
+          if (this._map.getSource('freehand-preview')) {
+            this._map.getSource('freehand-preview').setData({
+              type: 'FeatureCollection',
+              features: [{
+                type: 'Feature',
+                geometry: {
+                  type: 'LineString',
+                  coordinates: this._freehand.points
+                }
+              }]
+            });
+          }
         }
       });
       this._map.on('mouseup', () => finishFreehand());
 
       btnCircle.addEventListener('click', () => {
+        // Cancel any active freehand drawing
+        if (this._freehand.active) {
+          this._freehand.active = false;
+          this._freehand.points = [];
+          this._map.dragPan.enable();
+          if (this._map.getSource('freehand-preview')) {
+            this._map.getSource('freehand-preview').setData({
+              type: 'FeatureCollection',
+              features: []
+            });
+          }
+        }
         out.innerHTML = 'Click map for circle center…';
         this._map.getCanvas().style.cursor = 'crosshair';
         this._map.once('click', (e) => {
@@ -297,6 +412,26 @@
 
       btnClear.addEventListener('click', () => {
         this._draw.deleteAll();
+
+        // Clear and remove freehand preview layer completely
+        if (this._map.getLayer('freehand-preview')) {
+          this._map.removeLayer('freehand-preview');
+        }
+        if (this._map.getSource('freehand-preview')) {
+          this._map.removeSource('freehand-preview');
+        }
+
+        // Reset freehand state
+        this._freehand.active = false;
+        this._freehand.points = [];
+        this._freehand.tempLayer = null;
+        this._map.dragPan.enable();
+        this._map.getCanvas().style.cursor = '';
+
+        // Reset mode to polygon
+        this._mode = 'polygon';
+        this._draw.changeMode('simple_select');
+
         this._updateMeasurements();
       });
 
@@ -320,11 +455,68 @@
       btnData.addEventListener('click', () => {
         const data = this.getData();
         if (!data.features.length) return alert('Draw an area first.');
-        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = 'measurement-data.json';
-        link.click();
+
+        // Ask user for format preference
+        const format = confirm('Click OK for CSV (readable), or Cancel for JSON (technical)') ? 'csv' : 'json';
+
+        if (format === 'csv') {
+          // Create readable CSV format
+          const timestamp = new Date().toLocaleString();
+          const address = this._currentAddress || 'No address specified';
+          const center = this._map.getCenter();
+          const coords = `${center.lat.toFixed(6)}, ${center.lng.toFixed(6)}`;
+
+          let csv = 'Area Measurement Report\n';
+          csv += `Date/Time:,${timestamp}\n`;
+          csv += `Address:,${address}\n`;
+          csv += `Map Center:,${coords}\n`;
+          csv += `Units:,${this._units === 'imperial' ? 'Imperial (ft/sq ft)' : 'Metric (m/sq m)'}\n`;
+          csv += '\n';
+          csv += 'SUMMARY\n';
+          csv += `Total Area (sq ft):,${data.area_sq_ft}\n`;
+          csv += `Total Area (sq m):,${data.area_sq_m}\n`;
+          csv += `Total Perimeter (ft):,${data.perimeter_ft}\n`;
+          csv += `Total Perimeter (m):,${data.perimeter_m}\n`;
+          csv += `Number of Shapes:,${data.features.length}\n`;
+          csv += '\n';
+          csv += 'INDIVIDUAL SHAPES\n';
+          csv += 'Shape #,Area (sq ft),Area (sq m),Perimeter (ft),Perimeter (m)\n';
+
+          // Calculate individual shape measurements
+          data.features.forEach((feat, idx) => {
+            try {
+              const areaSqM = turf.area(feat);
+              const areaSqFt = areaSqM * 10.76391041671;
+              const lines = turf.polygonToLine(feat);
+              const perimKm = turf.length(lines, { units: 'kilometers' });
+              const perimM = perimKm * 1000;
+              const perimFt = perimKm * 3280.8398950131;
+
+              csv += `${idx + 1},${areaSqFt.toFixed(2)},${areaSqM.toFixed(2)},${perimFt.toFixed(2)},${perimM.toFixed(2)}\n`;
+            } catch (e) {
+              csv += `${idx + 1},Error,Error,Error,Error\n`;
+            }
+          });
+
+          const blob = new Blob([csv], { type: 'text/csv' });
+          const link = document.createElement('a');
+          link.href = URL.createObjectURL(blob);
+          link.download = `area-measurement-${new Date().toISOString().split('T')[0]}.csv`;
+          link.click();
+        } else {
+          // JSON format with address
+          const exportData = {
+            timestamp: new Date().toISOString(),
+            address: this._currentAddress || 'Not specified',
+            location: this._currentLocation || this._map.getCenter().toArray(),
+            ...data
+          };
+          const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+          const link = document.createElement('a');
+          link.href = URL.createObjectURL(blob);
+          link.download = `area-measurement-${new Date().toISOString().split('T')[0]}.json`;
+          link.click();
+        }
       });
 
       btnToken.addEventListener('click', () => {
