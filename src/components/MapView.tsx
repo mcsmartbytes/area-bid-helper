@@ -1,5 +1,5 @@
 "use client"
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import mapboxgl, { MapMouseEvent } from 'mapbox-gl'
 import MapboxDraw from '@mapbox/mapbox-gl-draw'
 // Turf utils
@@ -28,6 +28,7 @@ export default function MapView() {
   const mapRef = useRef<mapboxgl.Map | null>(null)
   const drawRef = useRef<MapboxDraw | null>(null)
   const containerRef = useRef<HTMLDivElement | null>(null)
+  const [hasToken, setHasToken] = useState<boolean>(false)
 
   const mode = useAppStore((s) => s.mode)
   const setMeasurements = useAppStore((s) => s.setMeasurements)
@@ -35,9 +36,9 @@ export default function MapView() {
 
   useEffect(() => {
     const token = getToken()
-    if (token) {
-      ;(mapboxgl as any).accessToken = token
-    }
+    setHasToken(!!token)
+    if (!token) return
+    ;(mapboxgl as any).accessToken = token
 
     const map = new mapboxgl.Map({
       container: containerRef.current!,
@@ -173,5 +174,21 @@ export default function MapView() {
     draw.deleteAll()
   }, [clearTick])
 
-  return <div ref={containerRef} className="map-container" />
+  return (
+    <div ref={containerRef} className="map-container">
+      {!hasToken && (
+        <div style={{
+          position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          color: 'var(--fg)', background: 'linear-gradient(180deg, rgba(0,0,0,0.35), rgba(0,0,0,0.25))'
+        }}>
+          <div className="glass" style={{ padding: 16, borderRadius: 12, maxWidth: 520, textAlign: 'center' }}>
+            <div style={{ fontSize: 18, marginBottom: 8 }}>Mapbox token required</div>
+            <div style={{ fontSize: 14, color: 'var(--muted)' }}>
+              Append <code>?token=YOUR_MAPBOX_TOKEN</code> to the URL or set the Vercel env <code>NEXT_PUBLIC_MAPBOX_TOKEN</code>.
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
 }
