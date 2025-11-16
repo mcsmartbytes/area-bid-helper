@@ -13,6 +13,7 @@ export default function Toolbar() {
       <button className={"btn" + (mode === 'pan' ? ' active' : '')} onClick={() => setMode('pan')} title="Pan/Select (V)">🖱 Pan</button>
       <button className={"btn" + (mode === 'polygon' ? ' active' : '')} onClick={() => setMode('polygon')} title="Draw area (A)">⬠ Area</button>
       <button className={"btn" + (mode === 'line' ? ' active' : '')} onClick={() => setMode('line')} title="Measure length (L)">／ Length</button>
+      <button className={"btn" + (mode === 'freehand' ? ' active' : '')} onClick={() => setMode('freehand')} title="Freehand area (Shift while Area)">✎ Freehand</button>
       <button className="btn" onClick={requestClear} title="Clear all">✕ Clear</button>
       <button className="btn" onClick={toggleUnits} title="Toggle units">
         Units: {unitSystem === 'metric' ? 'Metric' : 'Imperial'}
@@ -23,4 +24,3 @@ export default function Toolbar() {
     </div>
   )
 }
-

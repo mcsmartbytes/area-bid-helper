@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 
 export type UnitSystem = 'metric' | 'imperial'
-export type Mode = 'pan' | 'polygon' | 'line'
+export type Mode = 'pan' | 'polygon' | 'line' | 'freehand'
 
 type Measurements = {
   area?: number // square meters
@@ -38,4 +38,3 @@ export const useAppStore = create<Store>((set, get) => ({
   setMeasurements: (m) => set({ measurements: m }),
   requestClear: () => set((s) => ({ clearTick: s.clearTick + 1, measurements: {} })),
 }))
-

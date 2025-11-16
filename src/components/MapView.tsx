@@ -72,6 +72,7 @@ export default function MapView() {
       }
       setMeasurements({ area: area || undefined, length: length || undefined })
     }
+    const computeRef: { current: () => void } = { current: compute }
 
     const onCreate = () => compute()
     const onUpdate = () => compute()
@@ -86,10 +87,70 @@ export default function MapView() {
       try { map.setFog({ 'horizon-blend': 0.1, color: '#d2e9ff', 'high-color': '#aad4ff' } as any) } catch {}
     })
 
+    // Freehand drawing support (mode 'freehand' or Shift while in 'polygon')
+    let drawing = false
+    let points: number[][] = []
+    let lastScreen: { x: number; y: number } | null = null
+    const pxThreshold = 3
+
+    function startFreehand(e: mapboxgl.MapMouseEvent & mapboxgl.EventData) {
+      drawing = true
+      points = [[e.lngLat.lng, e.lngLat.lat]]
+      lastScreen = map.project(e.lngLat)
+      try { map.dragPan.disable() } catch {}
+    }
+    function moveFreehand(e: mapboxgl.MapMouseEvent & mapboxgl.EventData) {
+      if (!drawing) return
+      const p = map.project(e.lngLat)
+      if (!lastScreen || Math.hypot(p.x - lastScreen.x, p.y - lastScreen.y) >= pxThreshold) {
+        points.push([e.lngLat.lng, e.lngLat.lat])
+        lastScreen = p
+      }
+    }
+    function endFreehand() {
+      if (!drawing) return
+      drawing = false
+      try { map.dragPan.enable() } catch {}
+      if (points.length > 3) {
+        const ls = turf.lineString(points)
+        const simplified = turf.simplify(ls, { tolerance: 0.0001, highQuality: false }) as turf.Feature<turf.LineString>
+        const coords = simplified.geometry.coordinates.slice()
+        if (coords.length > 3) {
+          coords.push(coords[0])
+          const poly = {
+            type: 'Feature',
+            properties: {},
+            geometry: { type: 'Polygon', coordinates: [coords] },
+          } as any
+          try { draw.add(poly) } catch {}
+          computeRef.current()
+        }
+      }
+      points = []
+      lastScreen = null
+    }
+
+    const onMouseDown = (e: mapboxgl.MapMouseEvent & mapboxgl.EventData) => {
+      const shiftHeld = (e.originalEvent as MouseEvent).shiftKey
+      const shouldFreehand = useAppStore.getState().mode === 'freehand' || (useAppStore.getState().mode === 'polygon' && shiftHeld)
+      if (shouldFreehand) startFreehand(e)
+    }
+    const onMouseMove = (e: mapboxgl.MapMouseEvent & mapboxgl.EventData) => moveFreehand(e)
+    const onMouseUp = () => endFreehand()
+
+    map.on('mousedown', onMouseDown)
+    map.on('mousemove', onMouseMove)
+    map.on('mouseup', onMouseUp)
+    map.on('mouseout', onMouseUp)
+
     return () => {
       map.off('draw.create', onCreate)
       map.off('draw.update', onUpdate)
       map.off('draw.delete', onDelete)
+      map.off('mousedown', onMouseDown)
+      map.off('mousemove', onMouseMove)
+      map.off('mouseup', onMouseUp)
+      map.off('mouseout', onMouseUp)
       map.remove()
       mapRef.current = null
       drawRef.current = null
@@ -114,4 +175,3 @@ export default function MapView() {
 
   return <div ref={containerRef} className="map-container" />
 }
-
