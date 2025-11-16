@@ -61,13 +61,13 @@ export default function MapView() {
       const all = draw.getAll()
       let area = 0
       let length = 0
-      for (const f of all.features as turf.AllGeoJSON[]) {
+      for (const f of all.features as any[]) {
         const g = f as any
         if (g.geometry?.type === 'Polygon' || g.geometry?.type === 'MultiPolygon') {
           try { area += turf.area(g as any) } catch {}
         }
         if (g.geometry?.type === 'LineString' || g.geometry?.type === 'MultiLineString') {
-          try { length += turf.length(g as any, { units: 'meters' as any }) as unknown as number } catch {}
+          try { length += turf.length(g as any, { units: 'kilometers' }) * 1000 } catch {}
         }
       }
       setMeasurements({ area: area || undefined, length: length || undefined })
@@ -113,7 +113,7 @@ export default function MapView() {
       try { map.dragPan.enable() } catch {}
       if (points.length > 3) {
         const ls = turf.lineString(points)
-        const simplified = turf.simplify(ls, { tolerance: 0.0001, highQuality: false }) as turf.Feature<turf.LineString>
+        const simplified = turf.simplify(ls as any, { tolerance: 0.0001, highQuality: false }) as any
         const coords = simplified.geometry.coordinates.slice()
         if (coords.length > 3) {
           coords.push(coords[0])
