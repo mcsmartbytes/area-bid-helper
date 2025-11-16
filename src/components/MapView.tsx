@@ -1,6 +1,6 @@
 "use client"
 import { useEffect, useRef } from 'react'
-import mapboxgl from 'mapbox-gl'
+import mapboxgl, { MapMouseEvent } from 'mapbox-gl'
 import MapboxDraw from '@mapbox/mapbox-gl-draw'
 // Turf utils
 import * as turf from '@turf/turf'
@@ -93,13 +93,13 @@ export default function MapView() {
     let lastScreen: { x: number; y: number } | null = null
     const pxThreshold = 3
 
-    function startFreehand(e: mapboxgl.MapMouseEvent & mapboxgl.EventData) {
+    function startFreehand(e: MapMouseEvent) {
       drawing = true
       points = [[e.lngLat.lng, e.lngLat.lat]]
       lastScreen = map.project(e.lngLat)
       try { map.dragPan.disable() } catch {}
     }
-    function moveFreehand(e: mapboxgl.MapMouseEvent & mapboxgl.EventData) {
+    function moveFreehand(e: MapMouseEvent) {
       if (!drawing) return
       const p = map.project(e.lngLat)
       if (!lastScreen || Math.hypot(p.x - lastScreen.x, p.y - lastScreen.y) >= pxThreshold) {
@@ -130,12 +130,12 @@ export default function MapView() {
       lastScreen = null
     }
 
-    const onMouseDown = (e: mapboxgl.MapMouseEvent & mapboxgl.EventData) => {
-      const shiftHeld = (e.originalEvent as MouseEvent).shiftKey
+    const onMouseDown = (e: MapMouseEvent) => {
+      const shiftHeld = e.originalEvent.shiftKey
       const shouldFreehand = useAppStore.getState().mode === 'freehand' || (useAppStore.getState().mode === 'polygon' && shiftHeld)
       if (shouldFreehand) startFreehand(e)
     }
-    const onMouseMove = (e: mapboxgl.MapMouseEvent & mapboxgl.EventData) => moveFreehand(e)
+    const onMouseMove = (e: MapMouseEvent) => moveFreehand(e)
     const onMouseUp = () => endFreehand()
 
     map.on('mousedown', onMouseDown)
