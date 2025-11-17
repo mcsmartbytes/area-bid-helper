@@ -95,8 +95,10 @@ export default function MapView() {
         })
 
         // Respond to style toggle
-        const unsubStyle = useAppStore.subscribe((state) => state.styleId, (styleId) => {
-          try { map.setStyle(styleId) } catch {}
+        const unsubStyle = useAppStore.subscribe((state, prev) => {
+          if (state.styleId !== prev.styleId) {
+            try { map.setStyle(state.styleId) } catch {}
+          }
         })
 
         // Freehand drawing support
