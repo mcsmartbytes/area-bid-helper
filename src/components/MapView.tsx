@@ -32,9 +32,18 @@ export default function MapView() {
         if (cancelled) return
         ;(mapboxgl as any).accessToken = token
 
+        // Compute style, supporting 'auto' (system theme)
+        const mql = window.matchMedia('(prefers-color-scheme: dark)')
+        const computeStyle = (styleId: string) => {
+          if (styleId === 'auto') {
+            return mql.matches ? 'mapbox://styles/mapbox/dark-v11' : 'mapbox://styles/mapbox/light-v11'
+          }
+          return styleId
+        }
+
         const map = new mapboxgl.Map({
           container: containerRef.current!,
-          style: useAppStore.getState().styleId,
+          style: computeStyle(useAppStore.getState().styleId),
           center: [-97.75, 30.27],
           zoom: 11,
           attributionControl: true,
@@ -80,9 +89,15 @@ export default function MapView() {
         })
 
         // Respond to style toggle
+        const onMql = () => {
+          if (useAppStore.getState().styleId === 'auto') {
+            try { map.setStyle(computeStyle('auto')) } catch {}
+          }
+        }
+        mql.addEventListener?.('change', onMql)
         const unsubStyle = useAppStore.subscribe((state, prev) => {
           if (state.styleId !== prev.styleId) {
-            try { map.setStyle(state.styleId) } catch {}
+            try { map.setStyle(computeStyle(state.styleId)) } catch {}
           }
         })
 
@@ -146,6 +161,7 @@ export default function MapView() {
 
         return () => {
           try { unsubStyle() } catch {}
+          try { mql.removeEventListener?.('change', onMql) } catch {}
           map.off('draw.create', onCreate)
           map.off('draw.update', onUpdate)
           map.off('draw.delete', onDelete)

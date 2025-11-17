@@ -4,6 +4,7 @@ export type UnitSystem = 'metric' | 'imperial'
 export type Mode = 'pan' | 'polygon' | 'line' | 'freehand'
 
 export type MapStyleId =
+  | 'auto'
   | 'mapbox://styles/mapbox/streets-v12'
   | 'mapbox://styles/mapbox/outdoors-v12'
   | 'mapbox://styles/mapbox/satellite-streets-v12'
@@ -36,7 +37,7 @@ export const useAppStore = create<Store>((set, get) => ({
   mode: 'pan',
   measurements: {},
   clearTick: 0,
-  styleId: (typeof window !== 'undefined' && (localStorage.getItem('MAP_STYLE') as MapStyleId)) || 'mapbox://styles/mapbox/streets-v12',
+  styleId: (typeof window !== 'undefined' && (localStorage.getItem('MAP_STYLE') as MapStyleId)) || 'auto',
   smoothing: (typeof window !== 'undefined' && Number(localStorage.getItem('SMOOTHING') || '2')) || 2,
   setUnitSystem: (u) => {
     try { localStorage.setItem('UNIT_SYSTEM', u) } catch {}
