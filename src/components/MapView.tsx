@@ -2,30 +2,14 @@
 import { useEffect, useRef, useState } from 'react'
 import type { MapMouseEvent } from 'mapbox-gl'
 import { useAppStore } from '@/lib/store'
-
-function getToken(): string | undefined {
-  // 1) Env at build time
-  const envToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN
-  if (envToken) return envToken
-  // 2) URL ?token=
-  if (typeof window !== 'undefined') {
-    const url = new URL(window.location.href)
-    const t = url.searchParams.get('token')
-    if (t) {
-      try { localStorage.setItem('MAPBOX_TOKEN', t) } catch {}
-      return t
-    }
-    const ls = localStorage.getItem('MAPBOX_TOKEN')
-    if (ls) return ls
-  }
-  return undefined
-}
+import { readToken } from '@/lib/token'
 
 export default function MapView() {
   const mapRef = useRef<mapboxgl.Map | null>(null)
   const drawRef = useRef<MapboxDraw | null>(null)
   const containerRef = useRef<HTMLDivElement | null>(null)
   const [hasToken, setHasToken] = useState<boolean>(false)
+  const [tokenSource, setTokenSource] = useState<string | undefined>(undefined)
 
   const mode = useAppStore((s) => s.mode)
   const setMeasurements = useAppStore((s) => s.setMeasurements)
@@ -33,8 +17,9 @@ export default function MapView() {
 
   useEffect(() => {
     let cancelled = false
-    const token = getToken()
+    const { token, source } = readToken()
     setHasToken(!!token)
+    setTokenSource(source)
     if (!token) return
 
     ;(async () => {
@@ -210,6 +195,11 @@ export default function MapView() {
               Append <code>?token=YOUR_MAPBOX_TOKEN</code> to the URL or set the Vercel env <code>NEXT_PUBLIC_MAPBOX_TOKEN</code>.
             </div>
           </div>
+        </div>
+      )}
+      {hasToken && tokenSource && (
+        <div style={{ position: 'absolute', right: 8, top: 8, fontSize: 11, color: 'var(--muted)' }}>
+          token: {tokenSource}
         </div>
       )}
     </div>
