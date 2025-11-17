@@ -3,6 +3,13 @@ import { create } from 'zustand'
 export type UnitSystem = 'metric' | 'imperial'
 export type Mode = 'pan' | 'polygon' | 'line' | 'freehand'
 
+export type MapStyleId =
+  | 'mapbox://styles/mapbox/streets-v12'
+  | 'mapbox://styles/mapbox/outdoors-v12'
+  | 'mapbox://styles/mapbox/satellite-streets-v12'
+  | 'mapbox://styles/mapbox/light-v11'
+  | 'mapbox://styles/mapbox/dark-v11'
+
 type Measurements = {
   area?: number // square meters
   length?: number // meters
@@ -13,11 +20,15 @@ type Store = {
   mode: Mode
   measurements: Measurements
   clearTick: number
+  styleId: MapStyleId
+  smoothing: number // 0..10 (affects simplify tolerance)
   setUnitSystem: (u: UnitSystem) => void
   toggleUnits: () => void
   setMode: (m: Mode) => void
   setMeasurements: (m: Measurements) => void
   requestClear: () => void
+  setStyleId: (s: MapStyleId) => void
+  setSmoothing: (n: number) => void
 }
 
 export const useAppStore = create<Store>((set, get) => ({
@@ -25,6 +36,8 @@ export const useAppStore = create<Store>((set, get) => ({
   mode: 'pan',
   measurements: {},
   clearTick: 0,
+  styleId: (typeof window !== 'undefined' && (localStorage.getItem('MAP_STYLE') as MapStyleId)) || 'mapbox://styles/mapbox/streets-v12',
+  smoothing: (typeof window !== 'undefined' && Number(localStorage.getItem('SMOOTHING') || '2')) || 2,
   setUnitSystem: (u) => {
     try { localStorage.setItem('UNIT_SYSTEM', u) } catch {}
     set({ unitSystem: u })
@@ -37,4 +50,6 @@ export const useAppStore = create<Store>((set, get) => ({
   setMode: (m) => set({ mode: m }),
   setMeasurements: (m) => set({ measurements: m }),
   requestClear: () => set((s) => ({ clearTick: s.clearTick + 1, measurements: {} })),
+  setStyleId: (s) => { try { localStorage.setItem('MAP_STYLE', s) } catch {}; set({ styleId: s }) },
+  setSmoothing: (n) => { try { localStorage.setItem('SMOOTHING', String(n)) } catch {}; set({ smoothing: n }) },
 }))

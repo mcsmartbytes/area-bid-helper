@@ -49,7 +49,7 @@ export default function MapView() {
 
         const map = new mapboxgl.Map({
           container: containerRef.current!,
-          style: 'mapbox://styles/mapbox/streets-v12',
+          style: useAppStore.getState().styleId,
           center: [-97.75, 30.27],
           zoom: 11,
           attributionControl: true,
@@ -94,6 +94,11 @@ export default function MapView() {
           try { map.setFog({ 'horizon-blend': 0.1, color: '#d2e9ff', 'high-color': '#aad4ff' } as any) } catch {}
         })
 
+        // Respond to style toggle
+        const unsubStyle = useAppStore.subscribe((state) => state.styleId, (styleId) => {
+          try { map.setStyle(styleId) } catch {}
+        })
+
         // Freehand drawing support
         let drawing = false
         let points: number[][] = []
@@ -120,7 +125,9 @@ export default function MapView() {
           try { map.dragPan.enable() } catch {}
           if (points.length > 3) {
             const ls = turf.lineString(points)
-            const simplified = turf.simplify(ls as any, { tolerance: 0.0001, highQuality: false }) as any
+            const smoothing = useAppStore.getState().smoothing
+            const tol = Math.max(0, Math.min(10, smoothing)) * 0.00005 // 0..0.0005 degrees
+            const simplified = tol > 0 ? turf.simplify(ls as any, { tolerance: tol, highQuality: false }) as any : ls
             const coords = simplified.geometry.coordinates.slice()
             if (coords.length > 3) {
               coords.push(coords[0])
@@ -151,6 +158,7 @@ export default function MapView() {
         map.on('mouseout', onMouseUp)
 
         return () => {
+          try { unsubStyle() } catch {}
           map.off('draw.create', onCreate)
           map.off('draw.update', onUpdate)
           map.off('draw.delete', onDelete)
