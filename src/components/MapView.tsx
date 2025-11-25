@@ -14,6 +14,9 @@ export default function MapView() {
   const mode = useAppStore((s) => s.mode)
   const setMeasurements = useAppStore((s) => s.setMeasurements)
   const clearTick = useAppStore((s) => s.clearTick)
+  const command = useAppStore((s) => s.command)
+  const unitSystem = useAppStore((s) => s.unitSystem)
+  const toggleUnits = useAppStore((s) => s.toggleUnits)
 
   useEffect(() => {
     let cancelled = false
@@ -24,7 +27,11 @@ export default function MapView() {
 
     ;(async () => {
       try {
-        const [{ default: mapboxgl, NavigationControl }, { default: MapboxDraw }, turf] = await Promise.all([
+        const [
+          { default: mapboxgl, NavigationControl },
+          { default: MapboxDraw },
+          turf,
+        ] = await Promise.all([
           import('mapbox-gl') as any,
           import('@mapbox/mapbox-gl-draw') as any,
           import('@turf/turf') as any,
@@ -58,6 +65,21 @@ export default function MapView() {
         drawRef.current = draw
         map.addControl(draw, 'top-right')
         map.addControl(new NavigationControl({ visualizePitch: true }), 'top-right')
+
+        // Address search (Mapbox Geocoder)
+        try {
+          const [{ default: MapboxGeocoder }] = await Promise.all([
+            import('@mapbox/mapbox-gl-geocoder') as any,
+          ])
+          const geocoder = new (MapboxGeocoder as any)({
+            accessToken: (mapboxgl as any).accessToken,
+            mapboxgl,
+            marker: false,
+            collapsed: true,
+            placeholder: 'Search address…',
+          })
+          map.addControl(geocoder as any, 'top-right')
+        } catch {}
 
         const compute = () => {
           const all = draw.getAll()
@@ -197,6 +219,166 @@ export default function MapView() {
     if (!draw) return
     draw.deleteAll()
   }, [clearTick])
+
+  // Handle commands (export/rectangle/circle)
+  useEffect(() => {
+    if (!command) return
+    const map = mapRef.current
+    const draw = drawRef.current as any
+    if (!map || !draw) return
+
+    const currentId = command.id
+
+    function download(name: string, type: string, data: BlobPart) {
+      const blob = new Blob([data], { type })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = name
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+    }
+
+    const run = async () => {
+      if (command.id !== currentId) return
+      const all = draw.getAll()
+      switch (command.type) {
+        case 'export:json': {
+          download('areas.geojson', 'application/geo+json', JSON.stringify(all))
+          break
+        }
+        case 'export:png': {
+          try {
+            map.getCanvas().toBlob((blob) => {
+              if (!blob) return
+              const a = document.createElement('a')
+              a.href = URL.createObjectURL(blob)
+              a.download = 'map-snapshot.png'
+              document.body.appendChild(a)
+              a.click()
+              a.remove()
+            })
+          } catch {}
+          break
+        }
+        case 'export:csv': {
+          try {
+            const turf = await import('@turf/turf') as any
+            let areaSqM = 0
+            let perimeterKm = 0
+            const rows: string[] = []
+            let idx = 0
+            for (const f of all.features as any[]) {
+              if (f.geometry?.type === 'Polygon' || f.geometry?.type === 'MultiPolygon') {
+                try {
+                  const a = turf.area(f)
+                  const lines = turf.polygonToLine(f)
+                  const p = turf.length(lines, { units: 'kilometers' })
+                  areaSqM += a
+                  perimeterKm += p
+                  const areaSqFt = a * 10.76391041671
+                  const perimM = p * 1000
+                  const perimFt = p * 3280.8398950131
+                  rows.push([String(++idx), areaSqFt.toFixed(2), a.toFixed(2), perimFt.toFixed(2), perimM.toFixed(2)].join(','))
+                } catch {}
+              }
+            }
+            const areaSqFt = areaSqM * 10.76391041671
+            const perimM = perimeterKm * 1000
+            const perimFt = perimeterKm * 3280.8398950131
+            let csv = 'Area Measurement Report\n'
+            csv += `Units:,${unitSystem === 'imperial' ? 'Imperial (ft/sq ft)' : 'Metric (m/sq m)'}\n\n`
+            csv += 'SUMMARY\n'
+            csv += `Total Area (sq ft):,${areaSqFt.toFixed(2)}\n`
+            csv += `Total Area (sq m):,${areaSqM.toFixed(2)}\n`
+            csv += `Total Perimeter (ft):,${perimFt.toFixed(2)}\n`
+            csv += `Total Perimeter (m):,${perimM.toFixed(2)}\n`
+            csv += `Number of Shapes:,${rows.length}\n\n`
+            csv += 'INDIVIDUAL SHAPES\n'
+            csv += 'Shape #,Area (sq ft),Area (sq m),Perimeter (ft),Perimeter (m)\n'
+            csv += rows.join('\n') + (rows.length ? '\n' : '')
+            download('areas.csv', 'text/csv', csv)
+          } catch {}
+          break
+        }
+        case 'draw:rectangle': {
+          let first: [number, number] | null = null
+          const onClick = (e: mapboxgl.MapMouseEvent) => {
+            if (!first) {
+              first = [e.lngLat.lng, e.lngLat.lat]
+            } else {
+              const second: [number, number] = [e.lngLat.lng, e.lngLat.lat]
+              const minX = Math.min(first[0], second[0])
+              const maxX = Math.max(first[0], second[0])
+              const minY = Math.min(first[1], second[1])
+              const maxY = Math.max(first[1], second[1])
+              const rect = {
+                type: 'Feature',
+                properties: {},
+                geometry: { type: 'Polygon', coordinates: [[[minX, minY], [maxX, minY], [maxX, maxY], [minX, maxY], [minX, minY]]] },
+              }
+              try { draw.add(rect) } catch {}
+              map.off('click', onClick)
+              first = null
+            }
+          }
+          map.off('click', onClick)
+          map.on('click', onClick)
+          break
+        }
+        case 'draw:circle': {
+          const once = (e: mapboxgl.MapMouseEvent) => {
+            const center: [number, number] = [e.lngLat.lng, e.lngLat.lat]
+            const isImp = unitSystem === 'imperial'
+            const input = window.prompt(`Enter radius (${isImp ? 'feet' : 'meters'}):`, isImp ? '50' : '15')
+            if (!input) { map.off('click', once); return }
+            const radius = Number(input)
+            if (Number.isNaN(radius) || radius <= 0) { map.off('click', once); return }
+            const miles = isImp ? radius / 5280 : (radius / 1000) * 0.621371
+            import('@turf/turf').then((t: any) => {
+              try {
+                const circle = t.circle(center, miles, { steps: 128, units: 'miles' })
+                draw.add(circle)
+              } catch {}
+            }).finally(() => map.off('click', once))
+          }
+          map.off('click', once)
+          map.on('click', once)
+          break
+        }
+      }
+    }
+
+    run()
+  }, [command, unitSystem])
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const map = mapRef.current
+    const draw = drawRef.current
+    if (!map || !draw) return
+    const onKey = (e: KeyboardEvent) => {
+      // Ignore when typing in inputs/selects
+      const t = e.target as HTMLElement | null
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return
+      const key = e.key.toLowerCase()
+      if (key === 'v') useAppStore.getState().setMode('pan')
+      else if (key === 'a') useAppStore.getState().setMode('polygon')
+      else if (key === 'l') useAppStore.getState().setMode('line')
+      else if (key === 'f') useAppStore.getState().setMode('freehand')
+      else if (key === 'c') useAppStore.getState().requestClear()
+      else if (key === 'u') toggleUnits()
+      else if (key === 'j') useAppStore.getState().requestCommand('export:json')
+      else if (key === 'p') useAppStore.getState().requestCommand('export:png')
+      else if (key === 'k') useAppStore.getState().requestCommand('export:csv')
+      else if (key === 'r') useAppStore.getState().requestCommand('draw:rectangle')
+      else if (key === 'o') useAppStore.getState().requestCommand('draw:circle')
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [toggleUnits])
 
   return (
     <div ref={containerRef} className="map-container">
