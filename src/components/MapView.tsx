@@ -68,10 +68,9 @@ export default function MapView() {
 
         // Address search (Mapbox Geocoder)
         try {
-          const [{ default: MapboxGeocoder }] = await Promise.all([
-            import('@mapbox/mapbox-gl-geocoder') as any,
-          ])
-          const geocoder = new (MapboxGeocoder as any)({
+          const geocoderMod: any = await import('@mapbox/mapbox-gl-geocoder')
+          const Geocoder: any = geocoderMod?.default || geocoderMod
+          const geocoder = new Geocoder({
             accessToken: (mapboxgl as any).accessToken,
             mapboxgl,
             marker: false,
@@ -305,7 +304,7 @@ export default function MapView() {
         }
         case 'draw:rectangle': {
           let first: [number, number] | null = null
-          const onClick = (e: mapboxgl.MapMouseEvent) => {
+          const onClick = (e: MapMouseEvent) => {
             if (!first) {
               first = [e.lngLat.lng, e.lngLat.lat]
             } else {
@@ -329,7 +328,7 @@ export default function MapView() {
           break
         }
         case 'draw:circle': {
-          const once = (e: mapboxgl.MapMouseEvent) => {
+          const once = (e: MapMouseEvent) => {
             const center: [number, number] = [e.lngLat.lng, e.lngLat.lat]
             const isImp = unitSystem === 'imperial'
             const input = window.prompt(`Enter radius (${isImp ? 'feet' : 'meters'}):`, isImp ? '50' : '15')
