@@ -23,7 +23,7 @@ type Store = {
   clearTick: number
   styleId: MapStyleId
   smoothing: number // 0..10 (affects simplify tolerance)
-  command?: { type: string; id: number }
+  command?: { type: string; id: number; payload?: unknown }
   setUnitSystem: (u: UnitSystem) => void
   toggleUnits: () => void
   setMode: (m: Mode) => void
@@ -31,7 +31,7 @@ type Store = {
   requestClear: () => void
   setStyleId: (s: MapStyleId) => void
   setSmoothing: (n: number) => void
-  requestCommand: (type: string) => void
+  requestCommand: (type: string, payload?: unknown) => void
 }
 
 export const useAppStore = create<Store>((set, get) => ({
@@ -56,5 +56,5 @@ export const useAppStore = create<Store>((set, get) => ({
   requestClear: () => set((s) => ({ clearTick: s.clearTick + 1, measurements: {} })),
   setStyleId: (s) => { try { localStorage.setItem('MAP_STYLE', s) } catch {}; set({ styleId: s }) },
   setSmoothing: (n) => { try { localStorage.setItem('SMOOTHING', String(n)) } catch {}; set({ smoothing: n }) },
-  requestCommand: (type) => set(() => ({ command: { type, id: Date.now() } })),
+  requestCommand: (type, payload) => set(() => ({ command: { type, id: Date.now(), payload } })),
 }))

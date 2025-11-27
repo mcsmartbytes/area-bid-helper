@@ -347,6 +347,32 @@ export default function MapView() {
           map.on('click', once)
           break
         }
+        case 'view:reset': {
+          try {
+            map.flyTo({ center: [-97.75, 30.27], zoom: 11 })
+          } catch {}
+          break
+        }
+        case 'import:json': {
+          try {
+            const payload = (command as any).payload as string | undefined
+            if (!payload) break
+            let parsed: any
+            try { parsed = JSON.parse(payload) } catch { break }
+            const addFeature = (f: any) => {
+              try { draw.add(f) } catch {}
+            }
+            if (parsed?.type === 'FeatureCollection' && Array.isArray(parsed.features)) {
+              for (const f of parsed.features) addFeature(f)
+            } else if (parsed?.type === 'Feature') {
+              addFeature(parsed)
+            } else {
+              // try treating as geometry
+              if (parsed?.type && parsed?.coordinates) addFeature({ type: 'Feature', properties: {}, geometry: parsed })
+            }
+          } catch {}
+          break
+        }
       }
     }
 
