@@ -58,6 +58,9 @@ body {
   cursor: pointer;
   user-select: none;
   transition: transform 0.1s ease, background 0.2s ease, border-color 0.2s ease;
+  min-height: 36px;
+  min-width: 36px;
+  touch-action: manipulation;
 }
 .btn:hover {
   background: linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.03));
@@ -110,3 +113,14 @@ body {
 .modal-title { font-weight: 700; margin-bottom: 8px; }
 .modal-content { font-size: 13px; color: var(--muted); line-height: 1.5; }
 .modal-actions { margin-top: 12px; display: flex; justify-content: flex-end; }
+
+/* Larger tap targets on touch devices */
+@media (pointer: coarse), (max-width: 640px) {
+  .toolbar { gap: 12px; }
+  .btn { padding: 12px 14px; min-height: 48px; min-width: 48px; font-size: 14px; }
+  .metrics { padding: 14px 16px; }
+  .status-bar { padding: 10px 12px; }
+  /* Scale Mapbox controls for touch */
+  .mapboxgl-ctrl-group > button { width: 48px; height: 48px; }
+  .mapboxgl-ctrl-geocoder { min-width: 220px; }
+}
