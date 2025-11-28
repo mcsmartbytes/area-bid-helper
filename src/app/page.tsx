@@ -4,8 +4,13 @@ import Toolbar from '@/components/Toolbar'
 import MetricsPanel from '@/components/MetricsPanel'
 import StatusBar from '@/components/StatusBar'
 import PrefHydrator from '@/components/PrefHydrator'
+import { useMounted } from '@/lib/useMounted'
 
 export default function Page() {
+  const mounted = useMounted()
+  if (!mounted) {
+    return <div className="app-root" />
+  }
   return (
     <div className="app-root">
       <PrefHydrator />
