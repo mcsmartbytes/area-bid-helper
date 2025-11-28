@@ -4,10 +4,9 @@ import { useAppStore } from '@/lib/store'
 import { formatArea, formatLength } from '@/lib/format'
 
 export default function MetricsPanel() {
-  const { measurements, unitSystem } = useAppStore((s) => ({
-    measurements: s.measurements,
-    unitSystem: s.unitSystem,
-  }))
+  const unitSystem = useAppStore((s) => s.unitSystem)
+  const measurements = useAppStore((s) => s.measurements)
+  const ready = useAppStore((s) => s.hydrated)
 
   const area = measurements.area
   const length = measurements.length
@@ -29,6 +28,14 @@ export default function MetricsPanel() {
     if (length != null) parts.push(`Length: ${formatLength(length, unitSystem)}`)
     const text = parts.join(' | ') || 'No measurements'
     try { await navigator.clipboard.writeText(text) } catch {}
+  }
+
+  if (!ready) {
+    return (
+      <div className="glass metrics">
+        <div className="metric-line"><span className="metric-label">Loading</span><span>…</span></div>
+      </div>
+    )
   }
 
   return (
