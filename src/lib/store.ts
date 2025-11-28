@@ -35,12 +35,13 @@ type Store = {
 }
 
 export const useAppStore = create<Store>((set, get) => ({
-  unitSystem: (typeof window !== 'undefined' && (localStorage.getItem('UNIT_SYSTEM') as UnitSystem)) || 'metric',
+  // Deterministic defaults for SSR/CSR to avoid hydration mismatches
+  unitSystem: 'metric',
   mode: 'freehand',
   measurements: {},
   clearTick: 0,
-  styleId: (typeof window !== 'undefined' && (localStorage.getItem('MAP_STYLE') as MapStyleId)) || 'auto',
-  smoothing: (typeof window !== 'undefined' && Number(localStorage.getItem('SMOOTHING') || '2')) || 2,
+  styleId: 'auto',
+  smoothing: 2,
   command: undefined,
   setUnitSystem: (u) => {
     try { localStorage.setItem('UNIT_SYSTEM', u) } catch {}

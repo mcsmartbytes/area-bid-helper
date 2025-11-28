@@ -2,10 +2,12 @@ import MapView from '@/components/MapView'
 import Toolbar from '@/components/Toolbar'
 import MetricsPanel from '@/components/MetricsPanel'
 import StatusBar from '@/components/StatusBar'
+import PrefHydrator from '@/components/PrefHydrator'
 
 export default function Page() {
   return (
     <div className="app-root">
+      <PrefHydrator />
       <MapView />
       <div className="overlay top-left">
         <Toolbar />
