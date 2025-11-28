@@ -30,6 +30,15 @@ export default function MapView() {
     } catch {}
   }, [])
 
+  // Auto-enable when a token is available
+  useEffect(() => {
+    if (skipInit || enabled) return
+    try {
+      const { token } = readToken()
+      if (token) setEnabled(true)
+    } catch {}
+  }, [skipInit, enabled])
+
   useEffect(() => {
     if (skipInit || !enabled) return
     let cancelled = false
