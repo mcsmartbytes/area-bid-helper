@@ -17,6 +17,7 @@ export default function MapView() {
   const [initError, setInitError] = useState<string | null>(null)
   const [tokenInput, setTokenInput] = useState('')
   const [forceManual, setForceManual] = useState(false)
+  const [mapLoading, setMapLoading] = useState(false)
 
   const mode = useAppStore((s) => s.mode)
   const setMeasurements = useAppStore((s) => s.setMeasurements)
@@ -64,7 +65,6 @@ export default function MapView() {
         ])
         if (cancelled) return
         ;(mapboxgl as any).accessToken = token
-
         // Compute style, supporting 'auto' (system theme)
         const mql = window.matchMedia('(prefers-color-scheme: dark)')
         const computeStyle = (styleId: string) => {
@@ -74,6 +74,7 @@ export default function MapView() {
           return styleId
         }
 
+        setMapLoading(true)
         const map = new mapboxgl.Map({
           container: containerRef.current!,
           style: computeStyle(useAppStore.getState().styleId),
@@ -83,140 +84,147 @@ export default function MapView() {
         })
         mapRef.current = map
 
-        const draw = new MapboxDraw({
-          displayControlsDefault: false,
-          controls: { polygon: true, trash: true, line_string: true },
-          defaultMode: 'simple_select',
-        })
-        drawRef.current = draw
-        map.addControl(draw, 'top-right')
-        map.addControl(new NavigationControl({ visualizePitch: true }), 'top-right')
-
-        // Address search (Mapbox Geocoder)
-        try {
-          const geocoderMod: any = await import('@mapbox/mapbox-gl-geocoder')
-          const Geocoder: any = geocoderMod?.default || geocoderMod
-          const geocoder = new Geocoder({
-            accessToken: (mapboxgl as any).accessToken,
-            mapboxgl,
-            marker: false,
-            collapsed: true,
-            placeholder: 'Search address…',
-          })
-          map.addControl(geocoder as any, 'top-right')
-        } catch {}
-
-        const compute = () => {
-          const all = draw.getAll()
-          let area = 0
-          let length = 0
-          for (const f of all.features as any[]) {
-            const g = f as any
-            if (g.geometry?.type === 'Polygon' || g.geometry?.type === 'MultiPolygon') {
-              try { area += turf.area(g as any) } catch {}
-            }
-            if (g.geometry?.type === 'LineString' || g.geometry?.type === 'MultiLineString') {
-              try { length += turf.length(g as any, { units: 'kilometers' }) * 1000 } catch {}
-            }
-          }
-          setMeasurements({ area: area || undefined, length: length || undefined })
-        }
-        const computeRef: { current: () => void } = { current: compute }
-
-        const onCreate = () => compute()
-        const onUpdate = () => compute()
-        const onDelete = () => compute()
-
-        map.on('draw.create', onCreate)
-        map.on('draw.update', onUpdate)
-        map.on('draw.delete', onDelete)
-
-        map.on('load', () => {
+        const onMapLoad = async () => {
+          if (cancelled) return
           try { map.setFog({ 'horizon-blend': 0.1, color: '#d2e9ff', 'high-color': '#aad4ff' } as any) } catch {}
-        })
 
-        // Respond to style toggle
-        const onMql = () => {
-          if (useAppStore.getState().styleId === 'auto') {
-            try { map.setStyle(computeStyle('auto')) } catch {}
-          }
-        }
-        mql.addEventListener?.('change', onMql)
-        const unsubStyle = useAppStore.subscribe((state, prev) => {
-          if (state.styleId !== prev.styleId) {
-            try { map.setStyle(computeStyle(state.styleId)) } catch {}
-          }
-        })
+          // Controls after load
+          const draw = new MapboxDraw({
+            displayControlsDefault: false,
+            controls: { polygon: true, trash: true, line_string: true },
+            defaultMode: 'simple_select',
+          })
+          drawRef.current = draw
+          try { map.addControl(draw, 'top-right') } catch {}
+          try { map.addControl(new NavigationControl({ visualizePitch: true }), 'top-right') } catch {}
 
-        // Freehand drawing support
-        let drawing = false
-        let points: number[][] = []
-        let lastScreen: { x: number; y: number } | null = null
-        const pxThreshold = 3
+          // Address search (Mapbox Geocoder)
+          try {
+            const geocoderMod: any = await import('@mapbox/mapbox-gl-geocoder')
+            const Geocoder: any = geocoderMod?.default || geocoderMod
+            const geocoder = new Geocoder({
+              accessToken: (mapboxgl as any).accessToken,
+              mapboxgl,
+              marker: false,
+              collapsed: true,
+              placeholder: 'Search address…',
+            })
+            map.addControl(geocoder as any, 'top-right')
+          } catch {}
 
-        function startFreehand(e: MapMouseEvent) {
-          drawing = true
-          points = [[e.lngLat.lng, e.lngLat.lat]]
-          lastScreen = map.project(e.lngLat)
-          try { map.dragPan.disable() } catch {}
-        }
-        function moveFreehand(e: MapMouseEvent) {
-          if (!drawing) return
-          const p = map.project(e.lngLat)
-          if (!lastScreen || Math.hypot(p.x - lastScreen.x, p.y - lastScreen.y) >= pxThreshold) {
-            points.push([e.lngLat.lng, e.lngLat.lat])
-            lastScreen = p
+          // Measurement compute
+          const compute = () => {
+            if (!drawRef.current) return
+            const all = (drawRef.current as any).getAll()
+            let area = 0
+            let length = 0
+            for (const f of all.features as any[]) {
+              const g = f as any
+              if (g.geometry?.type === 'Polygon' || g.geometry?.type === 'MultiPolygon') {
+                try { area += (turf as any).area(g as any) } catch {}
+              }
+              if (g.geometry?.type === 'LineString' || g.geometry?.type === 'MultiLineString') {
+                try { length += (turf as any).length(g as any, { units: 'kilometers' }) * 1000 } catch {}
+              }
+            }
+            setMeasurements({ area: area || undefined, length: length || undefined })
           }
-        }
-        function endFreehand() {
-          if (!drawing) return
-          drawing = false
-          try { map.dragPan.enable() } catch {}
-          if (points.length > 3) {
-            const ls = turf.lineString(points)
-            const smoothing = useAppStore.getState().smoothing
-            const tol = Math.max(0, Math.min(10, smoothing)) * 0.00005 // 0..0.0005 degrees
-            const simplified = tol > 0 ? turf.simplify(ls as any, { tolerance: tol, highQuality: false }) as any : ls
-            const coords = simplified.geometry.coordinates.slice()
-            if (coords.length > 3) {
-              coords.push(coords[0])
-              const poly = {
-                type: 'Feature',
-                properties: {},
-                geometry: { type: 'Polygon', coordinates: [coords] },
-              } as any
-              try { draw.add(poly) } catch {}
-              computeRef.current()
+          const computeRef: { current: () => void } = { current: compute }
+
+          const onCreate = () => compute()
+          const onUpdate = () => compute()
+          const onDelete = () => compute()
+          map.on('draw.create', onCreate)
+          map.on('draw.update', onUpdate)
+          map.on('draw.delete', onDelete)
+
+          // Respond to style toggle
+          const onMql = () => {
+            if (useAppStore.getState().styleId === 'auto') {
+              try { map.setStyle(computeStyle('auto')) } catch {}
             }
           }
-          points = []
-          lastScreen = null
+          mql.addEventListener?.('change', onMql)
+          const unsubStyle = useAppStore.subscribe((state, prev) => {
+            if (state.styleId !== prev.styleId) {
+              try { map.setStyle(computeStyle(state.styleId)) } catch {}
+            }
+          })
+
+          // Freehand drawing support
+          let drawing = false
+          let points: number[][] = []
+          let lastScreen: { x: number; y: number } | null = null
+          const pxThreshold = 3
+          function startFreehand(e: MapMouseEvent) {
+            drawing = true
+            points = [[e.lngLat.lng, e.lngLat.lat]]
+            lastScreen = map.project(e.lngLat)
+            try { map.dragPan.disable() } catch {}
+          }
+          function moveFreehand(e: MapMouseEvent) {
+            if (!drawing) return
+            const p = map.project(e.lngLat)
+            if (!lastScreen || Math.hypot(p.x - lastScreen.x, p.y - lastScreen.y) >= pxThreshold) {
+              points.push([e.lngLat.lng, e.lngLat.lat])
+              lastScreen = p
+            }
+          }
+          function endFreehand() {
+            if (!drawing) return
+            drawing = false
+            try { map.dragPan.enable() } catch {}
+            if (points.length > 3) {
+              const ls = (turf as any).lineString(points)
+              const smoothing = useAppStore.getState().smoothing
+              const tol = Math.max(0, Math.min(10, smoothing)) * 0.00005
+              const simplified = tol > 0 ? (turf as any).simplify(ls as any, { tolerance: tol, highQuality: false }) as any : ls
+              const coords = simplified.geometry.coordinates.slice()
+              if (coords.length > 3) {
+                coords.push(coords[0])
+                const poly = { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [coords] } } as any
+                try { (drawRef.current as any)?.add(poly) } catch {}
+                computeRef.current()
+              }
+            }
+            points = []
+            lastScreen = null
+          }
+          const onMouseDown = (e: MapMouseEvent) => {
+            const shiftHeld = (e.originalEvent as any).shiftKey
+            const shouldFreehand = useAppStore.getState().mode === 'freehand' || (useAppStore.getState().mode === 'polygon' && shiftHeld)
+            if (shouldFreehand) startFreehand(e)
+          }
+          const onMouseMove = (e: MapMouseEvent) => moveFreehand(e)
+          const onMouseUp = () => endFreehand()
+          map.on('mousedown', onMouseDown)
+          map.on('mousemove', onMouseMove)
+          map.on('mouseup', onMouseUp)
+          map.on('mouseout', onMouseUp)
+
+          // Cleanup on unload
+          const cleanup = () => {
+            try { unsubStyle() } catch {}
+            try { mql.removeEventListener?.('change', onMql) } catch {}
+            try { map.off('draw.create', onCreate) } catch {}
+            try { map.off('draw.update', onUpdate) } catch {}
+            try { map.off('draw.delete', onDelete) } catch {}
+            try { map.off('mousedown', onMouseDown) } catch {}
+            try { map.off('mousemove', onMouseMove) } catch {}
+            try { map.off('mouseup', onMouseUp) } catch {}
+            try { map.off('mouseout', onMouseUp) } catch {}
+          }
+          // Store cleanup on ref for outer dispose
+          ;(map as any).__abp_cleanup = cleanup
+          setMapLoading(false)
         }
 
-        const onMouseDown = (e: MapMouseEvent) => {
-          const shiftHeld = e.originalEvent.shiftKey
-          const shouldFreehand = useAppStore.getState().mode === 'freehand' || (useAppStore.getState().mode === 'polygon' && shiftHeld)
-          if (shouldFreehand) startFreehand(e)
-        }
-        const onMouseMove = (e: MapMouseEvent) => moveFreehand(e)
-        const onMouseUp = () => endFreehand()
-
-        map.on('mousedown', onMouseDown)
-        map.on('mousemove', onMouseMove)
-        map.on('mouseup', onMouseUp)
-        map.on('mouseout', onMouseUp)
+        map.once('load', onMapLoad)
 
         return () => {
-          try { unsubStyle() } catch {}
-          try { mql.removeEventListener?.('change', onMql) } catch {}
-          map.off('draw.create', onCreate)
-          map.off('draw.update', onUpdate)
-          map.off('draw.delete', onDelete)
-          map.off('mousedown', onMouseDown)
-          map.off('mousemove', onMouseMove)
-          map.off('mouseup', onMouseUp)
-          map.off('mouseout', onMouseUp)
-          map.remove()
+          try { (mapRef.current as any)?.__abp_cleanup?.() } catch {}
+          try { mapRef.current?.off('load', onMapLoad) } catch {}
+          try { mapRef.current?.remove() } catch {}
           mapRef.current = null
           drawRef.current = null
         }
