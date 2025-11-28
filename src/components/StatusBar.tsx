@@ -1,5 +1,6 @@
 "use client"
 import { useAppStore, type Mode } from '@/lib/store'
+import { useMounted } from '@/lib/useMounted'
 
 function modeHint(mode: Mode) {
   switch (mode) {
@@ -19,6 +20,7 @@ export default function StatusBar() {
   const mode = useAppStore((s) => s.mode)
   const unitSystem = useAppStore((s) => s.unitSystem)
   const toggleUnits = useAppStore((s) => s.toggleUnits)
+  const mounted = useMounted()
   return (
     <div className="glass status-bar">
       <div className="status-left">
@@ -28,8 +30,8 @@ export default function StatusBar() {
         <span className="status-hint">{modeHint(mode)}</span>
       </div>
       <div className="status-right">
-        <button className="btn btn-quiet" onClick={toggleUnits} title="Toggle units (U)">
-          Units: {unitSystem === 'metric' ? 'Metric' : 'Imperial'}
+        <button className="btn btn-quiet" onClick={toggleUnits} title="Toggle units (U)" suppressHydrationWarning>
+          Units: {mounted ? (unitSystem === 'metric' ? 'Metric' : 'Imperial') : '…'}
         </button>
       </div>
     </div>

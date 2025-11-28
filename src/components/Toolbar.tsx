@@ -1,6 +1,7 @@
 "use client"
 import { useRef, useState } from 'react'
 import { useAppStore } from '@/lib/store'
+import { useMounted } from '@/lib/useMounted'
 
 export default function Toolbar() {
   const [showHelp, setShowHelp] = useState(false)
@@ -15,6 +16,7 @@ export default function Toolbar() {
   const setSmoothing = useAppStore((s) => s.setSmoothing)
   const requestCommand = useAppStore((s) => s.requestCommand)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const mounted = useMounted()
 
   return (
     <div className="glass toolbar">
@@ -28,35 +30,39 @@ export default function Toolbar() {
       <button className="btn" onClick={() => requestCommand('draw:circle')} title="Circle (O)">◯ Circle</button>
       <button className="btn" onClick={() => requestCommand('view:reset')} title="Reset view">⟲ Reset</button>
       <button className="btn" onClick={requestClear} title="Clear all (C)">✕ Clear</button>
-      <button className="btn" onClick={toggleUnits} title="Toggle units">
-        Units: {unitSystem === 'metric' ? 'Metric' : 'Imperial'}
+      <button className="btn" onClick={toggleUnits} title="Toggle units" suppressHydrationWarning>
+        Units: {mounted ? (unitSystem === 'metric' ? 'Metric' : 'Imperial') : '…'}
       </button>
       <span className="btn" title="Map style">
         Style:
-        <select
-          value={styleId}
-          onChange={(e) => setStyleId(e.target.value as any)}
-          style={{ background: 'transparent', color: 'inherit', border: 'none', outline: 'none' }}
-        >
-          <option value="auto">Auto (System)</option>
-          <option value="mapbox://styles/mapbox/streets-v12">Streets</option>
-          <option value="mapbox://styles/mapbox/outdoors-v12">Outdoors</option>
-          <option value="mapbox://styles/mapbox/satellite-streets-v12">Satellite</option>
-          <option value="mapbox://styles/mapbox/light-v11">Light</option>
-          <option value="mapbox://styles/mapbox/dark-v11">Dark</option>
-        </select>
+        {mounted && (
+          <select
+            value={styleId}
+            onChange={(e) => setStyleId(e.target.value as any)}
+            style={{ background: 'transparent', color: 'inherit', border: 'none', outline: 'none' }}
+          >
+            <option value="auto">Auto (System)</option>
+            <option value="mapbox://styles/mapbox/streets-v12">Streets</option>
+            <option value="mapbox://styles/mapbox/outdoors-v12">Outdoors</option>
+            <option value="mapbox://styles/mapbox/satellite-streets-v12">Satellite</option>
+            <option value="mapbox://styles/mapbox/light-v11">Light</option>
+            <option value="mapbox://styles/mapbox/dark-v11">Dark</option>
+          </select>
+        )}
       </span>
       <span className="btn" title="Freehand smoothing">
         Smoothing
-        <input
-          type="range"
-          min={0}
-          max={10}
-          step={1}
-          value={smoothing}
-          onChange={(e) => setSmoothing(Number(e.target.value))}
-          style={{ width: 90 }}
-        />
+        {mounted && (
+          <input
+            type="range"
+            min={0}
+            max={10}
+            step={1}
+            value={smoothing}
+            onChange={(e) => setSmoothing(Number(e.target.value))}
+            style={{ width: 90 }}
+          />
+        )}
       </span>
       <span className="btn" title="Export">
         Export
