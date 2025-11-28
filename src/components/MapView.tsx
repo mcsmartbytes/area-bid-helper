@@ -10,6 +10,7 @@ export default function MapView() {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const [hasToken, setHasToken] = useState<boolean>(false)
   const [tokenSource, setTokenSource] = useState<string | undefined>(undefined)
+  const [skipInit, setSkipInit] = useState(false)
 
   const mode = useAppStore((s) => s.mode)
   const setMeasurements = useAppStore((s) => s.setMeasurements)
@@ -19,6 +20,14 @@ export default function MapView() {
   const toggleUnits = useAppStore((s) => s.toggleUnits)
 
   useEffect(() => {
+    try {
+      const url = new URL(window.location.href)
+      if (url.searchParams.has('skipinit')) setSkipInit(true)
+    } catch {}
+  }, [])
+
+  useEffect(() => {
+    if (skipInit) return
     let cancelled = false
     const { token, source } = readToken()
     setHasToken(!!token)
@@ -201,7 +210,7 @@ export default function MapView() {
     })()
 
     return () => { cancelled = true }
-  }, [setMeasurements])
+  }, [setMeasurements, skipInit])
 
   // respond to mode changes
   useEffect(() => {
@@ -407,7 +416,7 @@ export default function MapView() {
 
   return (
     <div ref={containerRef} className="map-container">
-      {!hasToken && (
+      {!hasToken && !skipInit && (
         <div style={{
           position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
           color: 'var(--fg)', background: 'linear-gradient(180deg, rgba(0,0,0,0.35), rgba(0,0,0,0.25))'
@@ -418,6 +427,11 @@ export default function MapView() {
               Append <code>?token=YOUR_MAPBOX_TOKEN</code> to the URL or set the Vercel env <code>NEXT_PUBLIC_MAPBOX_TOKEN</code>.
             </div>
           </div>
+        </div>
+      )}
+      {skipInit && (
+        <div style={{ position: 'absolute', top: 8, left: 8, fontSize: 12, color: 'var(--muted)' }}>
+          Map init skipped via ?skipinit
         </div>
       )}
       {hasToken && tokenSource && (
