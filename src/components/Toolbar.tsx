@@ -34,9 +34,11 @@ export default function Toolbar() {
         Units: {mounted ? (unitSystem === 'metric' ? 'Metric' : 'Imperial') : '…'}
       </button>
       <span className="btn" title="Map style">
-        Style:
+        <label htmlFor="style-select" style={{ cursor: 'pointer' }}>Style:</label>
         {mounted && (
           <select
+            id="style-select"
+            name="map-style"
             value={styleId}
             onChange={(e) => setStyleId(e.target.value as any)}
             style={{ background: 'transparent', color: 'inherit', border: 'none', outline: 'none' }}
@@ -51,9 +53,11 @@ export default function Toolbar() {
         )}
       </span>
       <span className="btn" title="Freehand smoothing">
-        Smoothing
+        <label htmlFor="smoothing-range" style={{ cursor: 'pointer' }}>Smoothing</label>
         {mounted && (
           <input
+            id="smoothing-range"
+            name="smoothing"
             type="range"
             min={0}
             max={10}
@@ -65,8 +69,10 @@ export default function Toolbar() {
         )}
       </span>
       <span className="btn" title="Export">
-        Export
+        <label htmlFor="export-select" style={{ cursor: 'pointer' }}>Export</label>
         <select
+          id="export-select"
+          name="export-format"
           defaultValue=""
           onChange={(e) => {
             const v = e.target.value
@@ -92,6 +98,8 @@ export default function Toolbar() {
       <input
         ref={fileInputRef}
         type="file"
+        id="import-file"
+        name="import-file"
         accept=".json,.geojson,application/geo+json,application/json"
         style={{ display: 'none' }}
         onChange={async (e) => {
