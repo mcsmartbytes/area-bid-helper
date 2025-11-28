@@ -15,6 +15,7 @@ export default function MapView() {
   const [initTick, setInitTick] = useState(0)
   const [initError, setInitError] = useState<string | null>(null)
   const [tokenInput, setTokenInput] = useState('')
+  const [forceManual, setForceManual] = useState(false)
 
   const mode = useAppStore((s) => s.mode)
   const setMeasurements = useAppStore((s) => s.setMeasurements)
@@ -28,17 +29,18 @@ export default function MapView() {
       const url = new URL(window.location.href)
       if (url.searchParams.has('skipinit')) setSkipInit(true)
       if (url.searchParams.has('autoinit')) setEnabled(true)
+      if (url.searchParams.has('disablemap')) { setEnabled(false); setForceManual(true) }
     } catch {}
   }, [])
 
   // Auto-enable when a token is available
   useEffect(() => {
-    if (skipInit || enabled) return
+    if (skipInit || enabled || forceManual) return
     try {
       const { token } = readToken()
       if (token) setEnabled(true)
     } catch {}
-  }, [skipInit, enabled])
+  }, [skipInit, enabled, forceManual])
 
   useEffect(() => {
     if (skipInit || !enabled) return
