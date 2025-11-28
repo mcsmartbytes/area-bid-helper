@@ -25,6 +25,7 @@ type Store = {
   smoothing: number // 0..10 (affects simplify tolerance)
   command?: { type: string; id: number; payload?: unknown }
   hydrated: boolean
+  mapEnabled: boolean
   setUnitSystem: (u: UnitSystem) => void
   toggleUnits: () => void
   setMode: (m: Mode) => void
@@ -34,6 +35,7 @@ type Store = {
   setSmoothing: (n: number) => void
   requestCommand: (type: string, payload?: unknown) => void
   setHydrated: () => void
+  setMapEnabled: (v: boolean) => void
 }
 
 export const useAppStore = create<Store>((set, get) => ({
@@ -46,6 +48,7 @@ export const useAppStore = create<Store>((set, get) => ({
   smoothing: 2,
   command: undefined,
   hydrated: false,
+  mapEnabled: false,
   setUnitSystem: (u) => {
     try { localStorage.setItem('UNIT_SYSTEM', u) } catch {}
     set({ unitSystem: u })
@@ -62,4 +65,5 @@ export const useAppStore = create<Store>((set, get) => ({
   setSmoothing: (n) => { try { localStorage.setItem('SMOOTHING', String(n)) } catch {}; set({ smoothing: n }) },
   requestCommand: (type, payload) => set(() => ({ command: { type, id: Date.now(), payload } })),
   setHydrated: () => set({ hydrated: true }),
+  setMapEnabled: (v) => set({ mapEnabled: v }),
 }))

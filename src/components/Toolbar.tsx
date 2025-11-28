@@ -1,6 +1,7 @@
 "use client"
 import { useRef, useState } from 'react'
 import { useAppStore } from '@/lib/store'
+import { readToken } from '@/lib/token'
 import { useMounted } from '@/lib/useMounted'
 
 export default function Toolbar() {
@@ -17,6 +18,10 @@ export default function Toolbar() {
   const requestCommand = useAppStore((s) => s.requestCommand)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const mounted = useMounted()
+  const mapEnabled = useAppStore((s) => s.mapEnabled)
+  const setMapEnabled = useAppStore((s) => s.setMapEnabled)
+  const [showMapSettings, setShowMapSettings] = useState(false)
+  const [tokenInput, setTokenInput] = useState('')
 
   return (
     <div className="glass toolbar">
@@ -30,6 +35,7 @@ export default function Toolbar() {
       <button className="btn" onClick={() => requestCommand('draw:circle')} title="Circle (O)">◯ Circle</button>
       <button className="btn" onClick={() => requestCommand('view:reset')} title="Reset view">⟲ Reset</button>
       <button className="btn" onClick={requestClear} title="Clear all (C)">✕ Clear</button>
+      <button className="btn" onClick={() => setShowMapSettings(true)} title="Map settings">🗺 Map</button>
       <button className="btn" onClick={toggleUnits} title="Toggle units" suppressHydrationWarning>
         Units: {mounted ? (unitSystem === 'metric' ? 'Metric' : 'Imperial') : '…'}
       </button>
@@ -132,6 +138,46 @@ export default function Toolbar() {
             </div>
             <div className="modal-actions">
               <button className="btn" onClick={() => setShowHelp(false)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showMapSettings && (
+        <div className="modal-overlay" onClick={() => setShowMapSettings(false)}>
+          <div className="glass modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-title">Map Settings</div>
+            <div className="modal-content" style={{ display: 'grid', gap: 10 }}>
+              <div>
+                <strong>Status:</strong> {mapEnabled ? 'Enabled' : 'Disabled'}
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {!mapEnabled ? (
+                  <button className="btn" onClick={() => setMapEnabled(true)}>Enable Map</button>
+                ) : (
+                  <button className="btn" onClick={() => setMapEnabled(false)}>Disable Map</button>
+                )}
+                <button className="btn" onClick={() => requestCommand('view:reset')}>Reset View</button>
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--muted)' }}>
+                Token source: {readToken().source || 'none'}
+              </div>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <label htmlFor="modal-token-input">Token</label>
+                <input
+                  id="modal-token-input"
+                  name="modal-token-input"
+                  type="text"
+                  placeholder="pk.eyJ..."
+                  value={tokenInput}
+                  onChange={(e) => setTokenInput(e.target.value)}
+                  style={{ flex: 1, padding: '8px 10px', borderRadius: 8, border: '1px solid var(--glass-border)', background: 'rgba(0,0,0,0.2)', color: 'inherit' }}
+                />
+                <button className="btn" onClick={() => { try { localStorage.setItem('MAPBOX_TOKEN', tokenInput.trim()) } catch {}; setMapEnabled(false); setTimeout(() => setMapEnabled(true), 0) }}>Save</button>
+                <button className="btn" onClick={() => { try { localStorage.removeItem('MAPBOX_TOKEN') } catch {}; setMapEnabled(false) }}>Clear</button>
+              </div>
+            </div>
+            <div className="modal-actions">
+              <button className="btn" onClick={() => setShowMapSettings(false)}>Close</button>
             </div>
           </div>
         </div>
