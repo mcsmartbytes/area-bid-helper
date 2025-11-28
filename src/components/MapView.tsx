@@ -11,6 +11,9 @@ export default function MapView() {
   const [hasToken, setHasToken] = useState<boolean>(false)
   const [tokenSource, setTokenSource] = useState<string | undefined>(undefined)
   const [skipInit, setSkipInit] = useState(false)
+  const [enabled, setEnabled] = useState(false)
+  const [initTick, setInitTick] = useState(0)
+  const [initError, setInitError] = useState<string | null>(null)
 
   const mode = useAppStore((s) => s.mode)
   const setMeasurements = useAppStore((s) => s.setMeasurements)
@@ -23,11 +26,12 @@ export default function MapView() {
     try {
       const url = new URL(window.location.href)
       if (url.searchParams.has('skipinit')) setSkipInit(true)
+      if (url.searchParams.has('autoinit')) setEnabled(true)
     } catch {}
   }, [])
 
   useEffect(() => {
-    if (skipInit) return
+    if (skipInit || !enabled) return
     let cancelled = false
     const { token, source } = readToken()
     setHasToken(!!token)
@@ -205,12 +209,35 @@ export default function MapView() {
         }
       } catch (err) {
         console.warn('Map failed to initialize:', err)
-        if (!cancelled) setHasToken(false)
+        if (!cancelled) {
+          setHasToken(false)
+          setInitError(err instanceof Error ? err.message : String(err))
+        }
       }
     })()
 
     return () => { cancelled = true }
-  }, [setMeasurements, skipInit])
+  }, [setMeasurements, skipInit, enabled, initTick])
+
+  // Capture unhandled rejections while initializing
+  useEffect(() => {
+    if (!enabled) return
+    const onRej = (e: PromiseRejectionEvent) => {
+      try {
+        const msg = e?.reason?.message || String(e?.reason || 'unknown')
+        setInitError((prev) => prev || msg)
+      } catch {}
+    }
+    const onErr = (e: ErrorEvent) => {
+      try { setInitError((prev) => prev || (e?.error?.message || e.message || 'error')) } catch {}
+    }
+    window.addEventListener('unhandledrejection', onRej)
+    window.addEventListener('error', onErr)
+    return () => {
+      window.removeEventListener('unhandledrejection', onRej)
+      window.removeEventListener('error', onErr)
+    }
+  }, [enabled])
 
   // respond to mode changes
   useEffect(() => {
@@ -416,7 +443,24 @@ export default function MapView() {
 
   return (
     <div ref={containerRef} className="map-container">
-      {!hasToken && !skipInit && (
+      {!enabled && (
+        <div style={{
+          position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          color: 'var(--fg)', background: 'linear-gradient(180deg, rgba(0,0,0,0.35), rgba(0,0,0,0.25))'
+        }}>
+          <div className="glass" style={{ padding: 16, borderRadius: 12, maxWidth: 560 }}>
+            <div style={{ fontSize: 18, marginBottom: 8 }}>Map disabled</div>
+            <div style={{ fontSize: 14, color: 'var(--muted)', marginBottom: 10 }}>
+              Click Enable to initialize Mapbox. You can also add <code>?autoinit=1</code> to auto-run.
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="btn" onClick={() => { setInitError(null); setEnabled(true) }}>Enable Map</button>
+              <button className="btn" onClick={() => setEnabled(false)}>Keep Disabled</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {enabled && !hasToken && !skipInit && (
         <div style={{
           position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
           color: 'var(--fg)', background: 'linear-gradient(180deg, rgba(0,0,0,0.35), rgba(0,0,0,0.25))'
@@ -432,6 +476,18 @@ export default function MapView() {
       {skipInit && (
         <div style={{ position: 'absolute', top: 8, left: 8, fontSize: 12, color: 'var(--muted)' }}>
           Map init skipped via ?skipinit
+        </div>
+      )}
+      {enabled && initError && (
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+          <div className="glass" style={{ padding: 14, borderRadius: 12, maxWidth: 560, pointerEvents: 'auto' }}>
+            <div style={{ fontWeight: 600, marginBottom: 6 }}>Map initialization error</div>
+            <div style={{ fontSize: 12, color: 'var(--muted)', whiteSpace: 'pre-wrap' }}>{initError}</div>
+            <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
+              <button className="btn" onClick={() => { setInitError(null); setInitTick((n) => n + 1) }}>Retry</button>
+              <button className="btn" onClick={() => setEnabled(false)}>Disable</button>
+            </div>
+          </div>
         </div>
       )}
       {hasToken && tokenSource && (
