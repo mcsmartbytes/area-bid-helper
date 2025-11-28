@@ -1,4 +1,5 @@
 "use client"
+import { useEffect, useState } from 'react'
 import { useAppStore } from '@/lib/store'
 import { formatArea, formatLength } from '@/lib/format'
 
@@ -11,7 +12,16 @@ export default function MetricsPanel() {
   const area = measurements.area
   const length = measurements.length
 
-  const tokenMissing = typeof window !== 'undefined' && !localStorage.getItem('MAPBOX_TOKEN') && !process.env.NEXT_PUBLIC_MAPBOX_TOKEN
+  const [tokenMissing, setTokenMissing] = useState(false)
+  useEffect(() => {
+    try {
+      const hasEnv = !!process.env.NEXT_PUBLIC_MAPBOX_TOKEN
+      const hasLs = typeof window !== 'undefined' && !!localStorage.getItem('MAPBOX_TOKEN')
+      setTokenMissing(!(hasEnv || hasLs))
+    } catch {
+      setTokenMissing(true)
+    }
+  }, [])
 
   const copySummary = async () => {
     const parts: string[] = []
