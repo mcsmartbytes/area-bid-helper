@@ -454,7 +454,8 @@ export default function MapView() {
   }, [toggleUnits])
 
   return (
-    <div ref={containerRef} className="map-container">
+    <div className="map-container">
+      <div ref={containerRef} className="map-canvas" />
       {!enabled && (
         <div style={{
           position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
