@@ -1,3 +1,4 @@
+"use client"
 import MapView from '@/components/MapView'
 import Toolbar from '@/components/Toolbar'
 import MetricsPanel from '@/components/MetricsPanel'
