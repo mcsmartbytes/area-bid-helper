@@ -14,6 +14,7 @@ export default function MapView() {
   const [enabled, setEnabled] = useState(false)
   const [initTick, setInitTick] = useState(0)
   const [initError, setInitError] = useState<string | null>(null)
+  const [tokenInput, setTokenInput] = useState('')
 
   const mode = useAppStore((s) => s.mode)
   const setMeasurements = useAppStore((s) => s.setMeasurements)
@@ -474,10 +475,33 @@ export default function MapView() {
           position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
           color: 'var(--fg)', background: 'linear-gradient(180deg, rgba(0,0,0,0.35), rgba(0,0,0,0.25))'
         }}>
-          <div className="glass" style={{ padding: 16, borderRadius: 12, maxWidth: 520, textAlign: 'center' }}>
+          <div className="glass" style={{ padding: 16, borderRadius: 12, maxWidth: 560 }}>
             <div style={{ fontSize: 18, marginBottom: 8 }}>Mapbox token required</div>
-            <div style={{ fontSize: 14, color: 'var(--muted)' }}>
-              Append <code>?token=YOUR_MAPBOX_TOKEN</code> to the URL or set the Vercel env <code>NEXT_PUBLIC_MAPBOX_TOKEN</code>.
+            <div style={{ fontSize: 14, color: 'var(--muted)', marginBottom: 10 }}>
+              Paste your public token below (saved to this browser), or set env <code>NEXT_PUBLIC_MAPBOX_TOKEN</code>.
+            </div>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <label htmlFor="token-input" style={{ fontSize: 13 }}>Token</label>
+              <input
+                id="token-input"
+                name="mapbox-token"
+                type="text"
+                value={tokenInput}
+                onChange={(e) => setTokenInput(e.target.value)}
+                placeholder="pk.eyJ..."
+                style={{ flex: 1, padding: '8px 10px', borderRadius: 8, border: '1px solid var(--glass-border)', background: 'rgba(0,0,0,0.2)', color: 'inherit' }}
+              />
+              <button
+                className="btn"
+                onClick={() => {
+                  if (!tokenInput.trim()) return
+                  try { localStorage.setItem('MAPBOX_TOKEN', tokenInput.trim()) } catch {}
+                  setInitError(null)
+                  setHasToken(true)
+                  setTokenSource('localStorage')
+                  setInitTick((n) => n + 1)
+                }}
+              >Save</button>
             </div>
           </div>
         </div>
