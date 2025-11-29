@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 
 export type UnitSystem = 'metric' | 'imperial'
-export type Mode = 'pan' | 'polygon' | 'line' | 'freehand'
+export type Mode = 'pan' | 'polygon' | 'line' | 'freehand' | 'text'
 
 export type MapStyleId =
   | 'auto'
@@ -26,6 +26,7 @@ type Store = {
   command?: { type: string; id: number; payload?: unknown }
   hydrated: boolean
   mapEnabled: boolean
+  notes: string
   setUnitSystem: (u: UnitSystem) => void
   toggleUnits: () => void
   setMode: (m: Mode) => void
@@ -36,6 +37,7 @@ type Store = {
   requestCommand: (type: string, payload?: unknown) => void
   setHydrated: () => void
   setMapEnabled: (v: boolean) => void
+  setNotes: (n: string) => void
 }
 
 export const useAppStore = create<Store>((set, get) => ({
@@ -49,6 +51,7 @@ export const useAppStore = create<Store>((set, get) => ({
   command: undefined,
   hydrated: false,
   mapEnabled: false,
+  notes: '',
   setUnitSystem: (u) => {
     try { localStorage.setItem('UNIT_SYSTEM', u) } catch {}
     set({ unitSystem: u })
@@ -66,4 +69,5 @@ export const useAppStore = create<Store>((set, get) => ({
   requestCommand: (type, payload) => set(() => ({ command: { type, id: Date.now(), payload } })),
   setHydrated: () => set({ hydrated: true }),
   setMapEnabled: (v) => set({ mapEnabled: v }),
+  setNotes: (n) => { try { localStorage.setItem('SITE_NOTES', n) } catch {}; set({ notes: n }) },
 }))

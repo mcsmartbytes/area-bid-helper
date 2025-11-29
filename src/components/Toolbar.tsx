@@ -20,7 +20,10 @@ export default function Toolbar() {
   const mounted = useMounted()
   const mapEnabled = useAppStore((s) => s.mapEnabled)
   const setMapEnabled = useAppStore((s) => s.setMapEnabled)
+  const notes = useAppStore((s) => s.notes)
+  const setNotes = useAppStore((s) => s.setNotes)
   const [showMapSettings, setShowMapSettings] = useState(false)
+  const [showNotes, setShowNotes] = useState(false)
   const [tokenInput, setTokenInput] = useState('')
 
   return (
@@ -29,6 +32,7 @@ export default function Toolbar() {
         <button className={"btn" + (mode === 'freehand' ? ' active' : '')} onClick={() => setMode('freehand')} title="Freehand (F)">✎ Freehand</button>
         <button className={"btn" + (mode === 'polygon' ? ' active' : '')} onClick={() => setMode('polygon')} title="Polygon (A)">⬠ Polygon</button>
         <button className={"btn" + (mode === 'line' ? ' active' : '')} onClick={() => setMode('line')} title="Length (L)">／ Length</button>
+        <button className={"btn" + (mode === 'text' ? ' active' : '')} onClick={() => setMode('text')} title="Text Label (T)">T Text</button>
         <button className={"btn" + (mode === 'pan' ? ' active' : '')} onClick={() => setMode('pan')} title="Pan/Select (V)">🖱 Pan</button>
       </div>
       <button className="btn" onClick={() => requestCommand('draw:rectangle')} title="Rectangle (R)">▭ Rectangle</button>
@@ -119,6 +123,7 @@ export default function Toolbar() {
         }}
       />
       <button className="btn" onClick={() => setShowHelp((v: boolean) => !v)} title="Help">❓ Help</button>
+      <button className="btn" onClick={() => setShowNotes(true)} title="Site Notes">📝 Notes</button>
       <span className="btn" style={{ cursor: 'default' }}>
         <span className="brand">Area Bid Pro</span>
       </span>
@@ -178,6 +183,35 @@ export default function Toolbar() {
             </div>
             <div className="modal-actions">
               <button className="btn" onClick={() => setShowMapSettings(false)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showNotes && (
+        <div className="modal-overlay" onClick={() => setShowNotes(false)}>
+          <div className="glass modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()} style={{ maxHeight: 'calc(100vh - 80px)', overflow: 'auto' }}>
+            <div className="modal-title">Site Notes</div>
+            <div className="modal-content">
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Add notes about this site..."
+                style={{
+                  width: '100%',
+                  height: 'min(300px, 50vh)',
+                  padding: '8px',
+                  borderRadius: 8,
+                  border: '1px solid var(--glass-border)',
+                  background: 'rgba(0,0,0,0.2)',
+                  color: 'inherit',
+                  fontFamily: 'inherit',
+                  fontSize: 14,
+                  resize: 'vertical'
+                }}
+              />
+            </div>
+            <div className="modal-actions">
+              <button className="btn" onClick={() => setShowNotes(false)}>Close</button>
             </div>
           </div>
         </div>

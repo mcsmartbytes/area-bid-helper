@@ -1,6 +1,7 @@
 "use client"
 import { useEffect, useRef, useState } from 'react'
-import type { MapMouseEvent } from 'mapbox-gl'
+import { createPortal } from 'react-dom'
+import mapboxgl, { type MapMouseEvent } from 'mapbox-gl'
 import { useAppStore } from '@/lib/store'
 import { readToken } from '@/lib/token'
 
@@ -18,6 +19,13 @@ export default function MapView() {
   const [tokenInput, setTokenInput] = useState('')
   const [forceManual, setForceManual] = useState(false)
   const [mapLoading, setMapLoading] = useState(false)
+  const [mounted, setMounted] = useState(false)
+  const [textAnnotations, setTextAnnotations] = useState<Array<{id: string; lng: number; lat: number; text: string}>>([])
+  const textMarkersRef = useRef<Array<mapboxgl.Marker>>([])
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const mode = useAppStore((s) => s.mode)
   const setMeasurements = useAppStore((s) => s.setMeasurements)
@@ -81,6 +89,7 @@ export default function MapView() {
           center: [-97.75, 30.27],
           zoom: 11,
           attributionControl: true,
+          preserveDrawingBuffer: true,
         })
         mapRef.current = map
 
@@ -197,10 +206,42 @@ export default function MapView() {
           }
           const onMouseMove = (e: MapMouseEvent) => moveFreehand(e)
           const onMouseUp = () => endFreehand()
+
+          // Touch event handlers for mobile/tablet
+          const onTouchStart = (e: MapMouseEvent) => {
+            const shouldFreehand = useAppStore.getState().mode === 'freehand'
+            if (shouldFreehand) {
+              e.preventDefault()
+              startFreehand(e)
+            }
+          }
+          const onTouchMove = (e: MapMouseEvent) => {
+            if (useAppStore.getState().mode === 'freehand') {
+              e.preventDefault()
+              moveFreehand(e)
+            }
+          }
+          const onTouchEnd = () => endFreehand()
+
           map.on('mousedown', onMouseDown)
           map.on('mousemove', onMouseMove)
           map.on('mouseup', onMouseUp)
           map.on('mouseout', onMouseUp)
+          map.on('touchstart', onTouchStart)
+          map.on('touchmove', onTouchMove)
+          map.on('touchend', onTouchEnd)
+          map.on('touchcancel', onTouchEnd)
+
+          // Text annotation click handler
+          const onMapClick = (e: MapMouseEvent) => {
+            if (useAppStore.getState().mode !== 'text') return
+            const text = prompt('Enter text label:')
+            if (!text) return
+            const id = 'text_' + Date.now()
+            const annotation = { id, lng: e.lngLat.lng, lat: e.lngLat.lat, text }
+            setTextAnnotations(prev => [...prev, annotation])
+          }
+          map.on('click', onMapClick)
 
           // Cleanup on unload
           const cleanup = () => {
@@ -213,6 +254,13 @@ export default function MapView() {
             try { map.off('mousemove', onMouseMove) } catch {}
             try { map.off('mouseup', onMouseUp) } catch {}
             try { map.off('mouseout', onMouseUp) } catch {}
+            try { map.off('touchstart', onTouchStart) } catch {}
+            try { map.off('touchmove', onTouchMove) } catch {}
+            try { map.off('touchend', onTouchEnd) } catch {}
+            try { map.off('touchcancel', onTouchEnd) } catch {}
+            try { map.off('click', onMapClick) } catch {}
+            textMarkersRef.current.forEach(m => m.remove())
+            textMarkersRef.current = []
           }
           // Store cleanup on ref for outer dispose
           ;(map as any).__abp_cleanup = cleanup
@@ -269,11 +317,36 @@ export default function MapView() {
     else draw.changeMode('simple_select')
   }, [mode])
 
+  // Render text annotations as markers
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+
+    // Remove existing markers
+    textMarkersRef.current.forEach(m => m.remove())
+    textMarkersRef.current = []
+
+    // Create new markers for each annotation
+    textAnnotations.forEach(ann => {
+      const el = document.createElement('div')
+      el.className = 'text-marker'
+      el.textContent = ann.text
+      el.style.cssText = 'background: rgba(255,255,255,0.9); padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; color: #000; border: 1px solid #333; cursor: pointer; white-space: nowrap;'
+
+      const marker = new mapboxgl.Marker({ element: el })
+        .setLngLat([ann.lng, ann.lat])
+        .addTo(map)
+
+      textMarkersRef.current.push(marker)
+    })
+  }, [textAnnotations])
+
   // respond to clear requests
   useEffect(() => {
     const draw = drawRef.current
     if (!draw) return
     draw.deleteAll()
+    setTextAnnotations([])
   }, [clearTick])
 
   // Handle commands (export/rectangle/circle)
@@ -302,7 +375,17 @@ export default function MapView() {
       const all = draw.getAll()
       switch (command.type) {
         case 'export:json': {
-          download('areas.geojson', 'application/geo+json', JSON.stringify(all))
+          // Add text annotations as Point features
+          const textFeatures = textAnnotations.map(ann => ({
+            type: 'Feature',
+            properties: { text: ann.text, type: 'text-annotation' },
+            geometry: { type: 'Point', coordinates: [ann.lng, ann.lat] }
+          }))
+          const combined = {
+            type: 'FeatureCollection',
+            features: [...all.features, ...textFeatures]
+          }
+          download('areas.geojson', 'application/geo+json', JSON.stringify(combined))
           break
         }
         case 'export:png': {
@@ -450,6 +533,7 @@ export default function MapView() {
       else if (key === 'a') useAppStore.getState().setMode('polygon')
       else if (key === 'l') useAppStore.getState().setMode('line')
       else if (key === 'f') useAppStore.getState().setMode('freehand')
+      else if (key === 't') useAppStore.getState().setMode('text')
       else if (key === 'c') useAppStore.getState().requestClear()
       else if (key === 'u') toggleUnits()
       else if (key === 'j') useAppStore.getState().requestCommand('export:json')
@@ -462,13 +546,12 @@ export default function MapView() {
     return () => window.removeEventListener('keydown', onKey)
   }, [toggleUnits])
 
-  return (
-    <div className="map-container">
-      <div ref={containerRef} className="map-canvas" />
+  const modals = (
+    <>
       {!enabled && (
         <div style={{
-          position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: 'var(--fg)', background: 'linear-gradient(180deg, rgba(0,0,0,0.35), rgba(0,0,0,0.25))'
+          position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          color: 'var(--fg)', background: 'linear-gradient(180deg, rgba(0,0,0,0.35), rgba(0,0,0,0.25))', zIndex: 1000
         }}>
           <div className="glass" style={{ padding: 16, borderRadius: 12, maxWidth: 560 }}>
             <div style={{ fontSize: 18, marginBottom: 8 }}>Map disabled</div>
@@ -484,8 +567,8 @@ export default function MapView() {
       )}
       {enabled && !hasToken && !skipInit && (
         <div style={{
-          position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: 'var(--fg)', background: 'linear-gradient(180deg, rgba(0,0,0,0.35), rgba(0,0,0,0.25))'
+          position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          color: 'var(--fg)', background: 'linear-gradient(180deg, rgba(0,0,0,0.35), rgba(0,0,0,0.25))', zIndex: 1000
         }}>
           <div className="glass" style={{ padding: 16, borderRadius: 12, maxWidth: 560 }}>
             <div style={{ fontSize: 18, marginBottom: 8 }}>Mapbox token required</div>
@@ -519,12 +602,12 @@ export default function MapView() {
         </div>
       )}
       {skipInit && (
-        <div style={{ position: 'absolute', top: 8, left: 8, fontSize: 12, color: 'var(--muted)' }}>
+        <div style={{ position: 'fixed', top: 8, left: 8, fontSize: 12, color: 'var(--muted)', zIndex: 1000 }}>
           Map init skipped via ?skipinit
         </div>
       )}
       {enabled && initError && (
-        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+        <div style={{ position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', zIndex: 1000 }}>
           <div className="glass" style={{ padding: 14, borderRadius: 12, maxWidth: 560, pointerEvents: 'auto' }}>
             <div style={{ fontWeight: 600, marginBottom: 6 }}>Map initialization error</div>
             <div style={{ fontSize: 12, color: 'var(--muted)', whiteSpace: 'pre-wrap' }}>{initError}</div>
@@ -536,10 +619,27 @@ export default function MapView() {
         </div>
       )}
       {hasToken && tokenSource && (
-        <div style={{ position: 'absolute', right: 8, top: 8, fontSize: 11, color: 'var(--muted)' }}>
+        <div style={{ position: 'fixed', right: 8, top: 8, fontSize: 11, color: 'var(--muted)', zIndex: 1000 }}>
           token: {tokenSource}
         </div>
       )}
-    </div>
+      {mapLoading && enabled && (
+        <div style={{ position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', zIndex: 500 }}>
+          <div className="glass" style={{ padding: 16, borderRadius: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ width: 20, height: 20, border: '2px solid var(--accent)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+            <div style={{ fontSize: 14, color: 'var(--fg)' }}>Loading map...</div>
+          </div>
+        </div>
+      )}
+    </>
+  )
+
+  return (
+    <>
+      <div className="map-container">
+        <div ref={containerRef} className="map-canvas" />
+      </div>
+      {mounted && createPortal(modals, document.body)}
+    </>
   )
 }
