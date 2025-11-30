@@ -137,7 +137,7 @@ export default function Toolbar() {
               - Polygon (A): click vertices; double-click to finish.<br/>
               - Length (L): measure linear distance.<br/>
               - Text (T): click to add text labels.<br/>
-              - Height (H): click to add height measurements (3D buildings enabled).<br/>
+              - Height (H): click to add height measurements.<br/>
               - Pan (V): select/move shapes.<br/>
               - Rectangle (R) and Circle (O) tools available.<br/>
               - Clear (C), Toggle Units (U). Export: PNG (P), GeoJSON (J), CSV (K).<br/>

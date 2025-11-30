@@ -55,7 +55,7 @@ export const useAppStore = create<Store>((set, get) => ({
   hydrated: false,
   mapEnabled: false,
   notes: '',
-  enable3D: true,
+  enable3D: false,
   setUnitSystem: (u) => {
     try { localStorage.setItem('UNIT_SYSTEM', u) } catch {}
     set({ unitSystem: u })
