@@ -22,6 +22,8 @@ export default function MapView() {
   const [mounted, setMounted] = useState(false)
   const [textAnnotations, setTextAnnotations] = useState<Array<{id: string; lng: number; lat: number; text: string}>>([])
   const textMarkersRef = useRef<Array<mapboxgl.Marker>>([])
+  const [heightMeasurements, setHeightMeasurements] = useState<Array<{id: string; lng: number; lat: number; value: number; label: string}>>([])
+  const heightMarkersRef = useRef<Array<mapboxgl.Marker>>([])
 
   useEffect(() => {
     setMounted(true)
@@ -97,6 +99,68 @@ export default function MapView() {
           if (cancelled) return
           try { map.setFog({ 'horizon-blend': 0.1, color: '#d2e9ff', 'high-color': '#aad4ff' } as any) } catch {}
 
+          // Enable 3D buildings layer
+          const add3DBuildings = () => {
+            try {
+              if (!useAppStore.getState().enable3D) return
+
+              // Check if the map style has a 'composite' source (Mapbox vector tiles)
+              const style = map.getStyle()
+              if (!style?.sources?.composite) {
+                console.log('3D buildings require a Mapbox vector style (streets, outdoors, satellite-streets)')
+                return
+              }
+
+              // Remove existing layer if it exists
+              if (map.getLayer('3d-buildings')) {
+                map.removeLayer('3d-buildings')
+              }
+
+              // Find the first symbol layer to insert buildings below labels
+              const layers = style.layers || []
+              const labelLayerId = layers.find(layer => layer.type === 'symbol' && (layer as any).layout?.['text-field'])?.id
+
+              // Add 3D building layer
+              map.addLayer({
+                id: '3d-buildings',
+                source: 'composite',
+                'source-layer': 'building',
+                filter: ['==', 'extrude', 'true'],
+                type: 'fill-extrusion',
+                minzoom: 15,
+                paint: {
+                  'fill-extrusion-color': '#aaa',
+                  'fill-extrusion-height': [
+                    'interpolate',
+                    ['linear'],
+                    ['zoom'],
+                    15,
+                    0,
+                    15.05,
+                    ['get', 'height']
+                  ],
+                  'fill-extrusion-base': [
+                    'interpolate',
+                    ['linear'],
+                    ['zoom'],
+                    15,
+                    0,
+                    15.05,
+                    ['get', 'min_height']
+                  ],
+                  'fill-extrusion-opacity': 0.6
+                }
+              } as any, labelLayerId)
+
+              console.log('3D buildings layer added successfully')
+            } catch (err) {
+              console.warn('Failed to add 3D buildings:', err)
+            }
+          }
+
+          // Add 3D buildings when style loads
+          map.once('idle', add3DBuildings)
+
           // Controls after load
           const draw = new MapboxDraw({
             displayControlsDefault: false,
@@ -150,13 +214,19 @@ export default function MapView() {
           // Respond to style toggle
           const onMql = () => {
             if (useAppStore.getState().styleId === 'auto') {
-              try { map.setStyle(computeStyle('auto')) } catch {}
+              try {
+                map.setStyle(computeStyle('auto'))
+                map.once('style.load', add3DBuildings)
+              } catch {}
             }
           }
           mql.addEventListener?.('change', onMql)
           const unsubStyle = useAppStore.subscribe((state, prev) => {
             if (state.styleId !== prev.styleId) {
-              try { map.setStyle(computeStyle(state.styleId)) } catch {}
+              try {
+                map.setStyle(computeStyle(state.styleId))
+                map.once('style.load', add3DBuildings)
+              } catch {}
             }
           })
 
@@ -234,12 +304,38 @@ export default function MapView() {
 
           // Text annotation click handler
           const onMapClick = (e: MapMouseEvent) => {
-            if (useAppStore.getState().mode !== 'text') return
-            const text = prompt('Enter text label:')
-            if (!text) return
-            const id = 'text_' + Date.now()
-            const annotation = { id, lng: e.lngLat.lng, lat: e.lngLat.lat, text }
-            setTextAnnotations(prev => [...prev, annotation])
+            const currentMode = useAppStore.getState().mode
+
+            if (currentMode === 'text') {
+              const text = prompt('Enter text label:')
+              if (!text) return
+              const id = 'text_' + Date.now()
+              const annotation = { id, lng: e.lngLat.lng, lat: e.lngLat.lat, text }
+              setTextAnnotations(prev => [...prev, annotation])
+            } else if (currentMode === 'height') {
+              const isImp = useAppStore.getState().unitSystem === 'imperial'
+              const input = prompt(`Enter height (${isImp ? 'feet' : 'meters'}):`, isImp ? '10' : '3')
+              if (!input) return
+              const value = Number(input)
+              if (Number.isNaN(value) || value <= 0) return
+
+              // Convert to meters for storage
+              const valueInMeters = isImp ? value * 0.3048 : value
+              const label = isImp ? `${value} ft` : `${value} m`
+
+              const id = 'height_' + Date.now()
+              const measurement = { id, lng: e.lngLat.lng, lat: e.lngLat.lat, value: valueInMeters, label }
+              setHeightMeasurements(prev => {
+                const updated = [...prev, measurement]
+                // Update store measurements
+                const current = useAppStore.getState().measurements
+                useAppStore.getState().setMeasurements({
+                  ...current,
+                  heights: updated
+                })
+                return updated
+              })
+            }
           }
           map.on('click', onMapClick)
 
@@ -261,6 +357,8 @@ export default function MapView() {
             try { map.off('click', onMapClick) } catch {}
             textMarkersRef.current.forEach(m => m.remove())
             textMarkersRef.current = []
+            heightMarkersRef.current.forEach(m => m.remove())
+            heightMarkersRef.current = []
           }
           // Store cleanup on ref for outer dispose
           ;(map as any).__abp_cleanup = cleanup
@@ -341,12 +439,37 @@ export default function MapView() {
     })
   }, [textAnnotations])
 
+  // Render height measurements as markers
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+
+    // Remove existing markers
+    heightMarkersRef.current.forEach(m => m.remove())
+    heightMarkersRef.current = []
+
+    // Create new markers for each height measurement
+    heightMeasurements.forEach(h => {
+      const el = document.createElement('div')
+      el.className = 'height-marker'
+      el.textContent = `↕ ${h.label}`
+      el.style.cssText = 'background: rgba(122,162,255,0.9); padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; color: #fff; border: 1px solid #4a7acc; cursor: pointer; white-space: nowrap;'
+
+      const marker = new mapboxgl.Marker({ element: el })
+        .setLngLat([h.lng, h.lat])
+        .addTo(map)
+
+      heightMarkersRef.current.push(marker)
+    })
+  }, [heightMeasurements])
+
   // respond to clear requests
   useEffect(() => {
     const draw = drawRef.current
     if (!draw) return
     draw.deleteAll()
     setTextAnnotations([])
+    setHeightMeasurements([])
   }, [clearTick])
 
   // Handle commands (export/rectangle/circle)
@@ -381,9 +504,15 @@ export default function MapView() {
             properties: { text: ann.text, type: 'text-annotation' },
             geometry: { type: 'Point', coordinates: [ann.lng, ann.lat] }
           }))
+          // Add height measurements as Point features
+          const heightFeatures = heightMeasurements.map(h => ({
+            type: 'Feature',
+            properties: { height: h.value, label: h.label, type: 'height-measurement' },
+            geometry: { type: 'Point', coordinates: [h.lng, h.lat] }
+          }))
           const combined = {
             type: 'FeatureCollection',
-            features: [...all.features, ...textFeatures]
+            features: [...all.features, ...textFeatures, ...heightFeatures]
           }
           download('areas.geojson', 'application/geo+json', JSON.stringify(combined))
           break
@@ -434,10 +563,20 @@ export default function MapView() {
             csv += `Total Area (sq m):,${areaSqM.toFixed(2)}\n`
             csv += `Total Perimeter (ft):,${perimFt.toFixed(2)}\n`
             csv += `Total Perimeter (m):,${perimM.toFixed(2)}\n`
-            csv += `Number of Shapes:,${rows.length}\n\n`
+            csv += `Number of Shapes:,${rows.length}\n`
+            csv += `Number of Height Measurements:,${heightMeasurements.length}\n\n`
             csv += 'INDIVIDUAL SHAPES\n'
             csv += 'Shape #,Area (sq ft),Area (sq m),Perimeter (ft),Perimeter (m)\n'
             csv += rows.join('\n') + (rows.length ? '\n' : '')
+            if (heightMeasurements.length > 0) {
+              csv += '\nHEIGHT MEASUREMENTS\n'
+              csv += 'Measurement #,Height (ft),Height (m)\n'
+              heightMeasurements.forEach((h, i) => {
+                const heightFt = h.value * 3.28084
+                const heightM = h.value
+                csv += `${i + 1},${heightFt.toFixed(2)},${heightM.toFixed(2)}\n`
+              })
+            }
             download('areas.csv', 'text/csv', csv)
           } catch {}
           break
@@ -517,7 +656,7 @@ export default function MapView() {
     }
 
     run()
-  }, [command, unitSystem])
+  }, [command, unitSystem, textAnnotations, heightMeasurements])
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -534,6 +673,7 @@ export default function MapView() {
       else if (key === 'l') useAppStore.getState().setMode('line')
       else if (key === 'f') useAppStore.getState().setMode('freehand')
       else if (key === 't') useAppStore.getState().setMode('text')
+      else if (key === 'h') useAppStore.getState().setMode('height')
       else if (key === 'c') useAppStore.getState().requestClear()
       else if (key === 'u') toggleUnits()
       else if (key === 'j') useAppStore.getState().requestCommand('export:json')

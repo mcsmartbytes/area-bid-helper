@@ -33,6 +33,7 @@ export default function Toolbar() {
         <button className={"btn" + (mode === 'polygon' ? ' active' : '')} onClick={() => setMode('polygon')} title="Polygon (A)">⬠ Polygon</button>
         <button className={"btn" + (mode === 'line' ? ' active' : '')} onClick={() => setMode('line')} title="Length (L)">／ Length</button>
         <button className={"btn" + (mode === 'text' ? ' active' : '')} onClick={() => setMode('text')} title="Text Label (T)">T Text</button>
+        <button className={"btn" + (mode === 'height' ? ' active' : '')} onClick={() => setMode('height')} title="Height (H)">↕ Height</button>
         <button className={"btn" + (mode === 'pan' ? ' active' : '')} onClick={() => setMode('pan')} title="Pan/Select (V)">🖱 Pan</button>
       </div>
       <button className="btn" onClick={() => requestCommand('draw:rectangle')} title="Rectangle (R)">▭ Rectangle</button>
@@ -135,6 +136,8 @@ export default function Toolbar() {
               - Freehand (F): drag to draw; release to finish.<br/>
               - Polygon (A): click vertices; double-click to finish.<br/>
               - Length (L): measure linear distance.<br/>
+              - Text (T): click to add text labels.<br/>
+              - Height (H): click to add height measurements (3D buildings enabled).<br/>
               - Pan (V): select/move shapes.<br/>
               - Rectangle (R) and Circle (O) tools available.<br/>
               - Clear (C), Toggle Units (U). Export: PNG (P), GeoJSON (J), CSV (K).<br/>
@@ -188,8 +191,8 @@ export default function Toolbar() {
         </div>
       )}
       {showNotes && (
-        <div className="modal-overlay" onClick={() => setShowNotes(false)}>
-          <div className="glass modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()} style={{ maxHeight: 'calc(100vh - 80px)', overflow: 'auto' }}>
+        <div className="modal-overlay" onClick={() => setShowNotes(false)} style={{ alignItems: 'flex-start', paddingTop: 60 }}>
+          <div className="glass modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()} style={{ maxHeight: 'calc(100vh - 120px)', overflow: 'auto' }}>
             <div className="modal-title">Site Notes</div>
             <div className="modal-content">
               <textarea
@@ -198,7 +201,8 @@ export default function Toolbar() {
                 placeholder="Add notes about this site..."
                 style={{
                   width: '100%',
-                  height: 'min(300px, 50vh)',
+                  height: 150,
+                  maxHeight: '40vh',
                   padding: '8px',
                   borderRadius: 8,
                   border: '1px solid var(--glass-border)',

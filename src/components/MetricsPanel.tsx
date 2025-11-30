@@ -10,6 +10,7 @@ export default function MetricsPanel() {
 
   const area = measurements.area
   const length = measurements.length
+  const heights = measurements.heights || []
 
   const [tokenMissing, setTokenMissing] = useState(false)
   useEffect(() => {
@@ -26,6 +27,10 @@ export default function MetricsPanel() {
     const parts: string[] = []
     if (area != null) parts.push(`Area: ${formatArea(area, unitSystem)}`)
     if (length != null) parts.push(`Length: ${formatLength(length, unitSystem)}`)
+    if (heights.length > 0) {
+      const heightStr = heights.map(h => h.label).join(', ')
+      parts.push(`Heights: ${heightStr}`)
+    }
     const text = parts.join(' | ') || 'No measurements'
     try { await navigator.clipboard.writeText(text) } catch {}
   }
@@ -56,8 +61,18 @@ export default function MetricsPanel() {
           <span className="metric-value">{formatLength(length, unitSystem)}</span>
         </div>
       )}
-      {area == null && length == null && (
-        <div className="metric-line"><span className="metric-label">Tip</span><span>Draw an area or line</span></div>
+      {heights.length > 0 && (
+        <div className="metric-line">
+          <span className="metric-label">Heights ({heights.length})</span>
+          <span className="metric-value" style={{ display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'flex-end' }}>
+            {heights.map(h => (
+              <span key={h.id}>{h.label}</span>
+            ))}
+          </span>
+        </div>
+      )}
+      {area == null && length == null && heights.length === 0 && (
+        <div className="metric-line"><span className="metric-label">Tip</span><span>Draw an area or line, or add heights</span></div>
       )}
       <div className="metric-foot">Units: {unitSystem === 'metric' ? 'Metric' : 'Imperial'}</div>
       {tokenMissing && (

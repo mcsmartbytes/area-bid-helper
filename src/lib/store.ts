@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 
 export type UnitSystem = 'metric' | 'imperial'
-export type Mode = 'pan' | 'polygon' | 'line' | 'freehand' | 'text'
+export type Mode = 'pan' | 'polygon' | 'line' | 'freehand' | 'text' | 'height'
 
 export type MapStyleId =
   | 'auto'
@@ -14,6 +14,7 @@ export type MapStyleId =
 type Measurements = {
   area?: number // square meters
   length?: number // meters
+  heights?: Array<{ id: string; value: number; label: string; lng: number; lat: number }> // meters
 }
 
 type Store = {
@@ -27,6 +28,7 @@ type Store = {
   hydrated: boolean
   mapEnabled: boolean
   notes: string
+  enable3D: boolean
   setUnitSystem: (u: UnitSystem) => void
   toggleUnits: () => void
   setMode: (m: Mode) => void
@@ -38,6 +40,7 @@ type Store = {
   setHydrated: () => void
   setMapEnabled: (v: boolean) => void
   setNotes: (n: string) => void
+  setEnable3D: (v: boolean) => void
 }
 
 export const useAppStore = create<Store>((set, get) => ({
@@ -52,6 +55,7 @@ export const useAppStore = create<Store>((set, get) => ({
   hydrated: false,
   mapEnabled: false,
   notes: '',
+  enable3D: true,
   setUnitSystem: (u) => {
     try { localStorage.setItem('UNIT_SYSTEM', u) } catch {}
     set({ unitSystem: u })
@@ -63,11 +67,12 @@ export const useAppStore = create<Store>((set, get) => ({
   },
   setMode: (m) => set({ mode: m }),
   setMeasurements: (m) => set({ measurements: m }),
-  requestClear: () => set((s) => ({ clearTick: s.clearTick + 1, measurements: {} })),
+  requestClear: () => set((s) => ({ clearTick: s.clearTick + 1, measurements: { heights: [] } })),
   setStyleId: (s) => { try { localStorage.setItem('MAP_STYLE', s) } catch {}; set({ styleId: s }) },
   setSmoothing: (n) => { try { localStorage.setItem('SMOOTHING', String(n)) } catch {}; set({ smoothing: n }) },
   requestCommand: (type, payload) => set(() => ({ command: { type, id: Date.now(), payload } })),
   setHydrated: () => set({ hydrated: true }),
   setMapEnabled: (v) => set({ mapEnabled: v }),
   setNotes: (n) => { try { localStorage.setItem('SITE_NOTES', n) } catch {}; set({ notes: n }) },
+  setEnable3D: (v) => { try { localStorage.setItem('ENABLE_3D', v ? '1' : '0') } catch {}; set({ enable3D: v }) },
 }))
