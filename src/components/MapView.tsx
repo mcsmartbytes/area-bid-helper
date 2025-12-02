@@ -581,6 +581,141 @@ export default function MapView() {
           } catch {}
           break
         }
+        case 'export:quote': {
+          // Send measurement data to parent website via postMessage
+          try {
+            const { integrationAPI } = await import('@/lib/integration')
+            if (!integrationAPI) break
+
+            const turf = await import('@turf/turf') as any
+            let areaSqM = 0
+            let perimeterM = 0
+            const shapes: any[] = []
+
+            for (const f of all.features as any[]) {
+              if (f.geometry?.type === 'Polygon' || f.geometry?.type === 'MultiPolygon') {
+                try {
+                  const a = turf.area(f)
+                  const lines = turf.polygonToLine(f)
+                  const p = turf.length(lines, { units: 'meters' })
+                  areaSqM += a
+                  perimeterM += p
+                  shapes.push({
+                    id: f.id || `shape-${shapes.length + 1}`,
+                    type: f.properties?.draw_type || 'polygon',
+                    area: a * 10.76391041671, // sq ft
+                    perimeter: p * 3.28084, // ft
+                    coordinates: f.geometry.coordinates
+                  })
+                } catch {}
+              }
+            }
+
+            const measurementData = {
+              totalArea: areaSqM * 10.76391041671, // sq ft
+              totalPerimeter: perimeterM * 3.28084, // ft
+              unit: unitSystem,
+              shapes,
+              heights: heightMeasurements.map(h => ({
+                id: h.id,
+                value: h.value * 3.28084, // ft
+                unit: 'ft',
+                coordinates: [h.lng, h.lat] as [number, number],
+                label: h.label
+              })),
+              notes: useAppStore.getState().notes,
+              timestamp: new Date().toISOString()
+            }
+
+            integrationAPI.exportToQuote(measurementData)
+
+            // Show confirmation if not embedded (for testing)
+            if (!integrationAPI.isEmbedded()) {
+              console.log('Quote data (would be sent to parent):', measurementData)
+              alert('Measurement data prepared! When embedded in a website, this will be sent to the parent page.')
+            }
+          } catch (err) {
+            console.error('Export to quote failed:', err)
+          }
+          break
+        }
+        case 'export:iif': {
+          // Export QuickBooks IIF format for estimates
+          try {
+            const turf = await import('@turf/turf') as any
+            const notes = useAppStore.getState().notes
+            const today = new Date()
+            const dateStr = `${today.getMonth() + 1}/${today.getDate()}/${today.getFullYear()}`
+
+            let totalAreaSqFt = 0
+            let totalPerimeterFt = 0
+            const lineItems: { desc: string; qty: number; rate: number }[] = []
+            let shapeIdx = 0
+
+            for (const f of all.features as any[]) {
+              if (f.geometry?.type === 'Polygon' || f.geometry?.type === 'MultiPolygon') {
+                try {
+                  const areaSqM = turf.area(f)
+                  const lines = turf.polygonToLine(f)
+                  const perimM = turf.length(lines, { units: 'meters' })
+                  const areaSqFt = areaSqM * 10.76391041671
+                  const perimFt = perimM * 3.28084
+                  totalAreaSqFt += areaSqFt
+                  totalPerimeterFt += perimFt
+                  shapeIdx++
+
+                  // Add as line item (area-based service)
+                  lineItems.push({
+                    desc: `Area ${shapeIdx}: ${areaSqFt.toFixed(0)} sq ft`,
+                    qty: Math.ceil(areaSqFt),
+                    rate: 0 // Rate to be filled in by user
+                  })
+                } catch {}
+              }
+            }
+
+            // Add height measurements as line items
+            heightMeasurements.forEach((h, i) => {
+              const heightFt = h.value * 3.28084
+              lineItems.push({
+                desc: `Height ${i + 1}: ${heightFt.toFixed(1)} ft${h.label ? ` - ${h.label}` : ''}`,
+                qty: 1,
+                rate: 0
+              })
+            })
+
+            // Build IIF file content
+            // IIF is tab-delimited format for QuickBooks Desktop
+            let iif = ''
+
+            // Header for Estimate
+            iif += '!TRNS\tTRNSTYPE\tDATE\tACCNT\tNAME\tCLASS\tAMOUNT\tDOCNUM\tMEMO\n'
+            iif += '!SPL\tTRNSTYPE\tDATE\tACCNT\tNAME\tCLASS\tAMOUNT\tDOCNUM\tMEMO\tQNTY\tPRICE\tINVITEM\tTAXABLE\n'
+            iif += '!ENDTRNS\n'
+
+            // Estimate transaction (placeholder - user fills in customer name and amounts)
+            const memo = notes ? notes.substring(0, 100).replace(/[\t\n\r]/g, ' ') : 'Area Bid Pro Measurement'
+            const docNum = `ABP-${Date.now().toString(36).toUpperCase()}`
+
+            iif += `TRNS\tESTIMATE\t${dateStr}\tAccounts Receivable\t\t\t0.00\t${docNum}\t${memo}\n`
+
+            // Add line items
+            lineItems.forEach((item) => {
+              const itemDesc = item.desc.replace(/[\t\n\r]/g, ' ')
+              iif += `SPL\tESTIMATE\t${dateStr}\tSales\t\t\t0.00\t${docNum}\t${itemDesc}\t${item.qty}\t${item.rate.toFixed(2)}\tServices\tN\n`
+            })
+
+            // Summary line
+            iif += `SPL\tESTIMATE\t${dateStr}\tSales\t\t\t0.00\t${docNum}\tTotal: ${totalAreaSqFt.toFixed(0)} sq ft, ${totalPerimeterFt.toFixed(0)} ft perimeter\t1\t0.00\tServices\tN\n`
+
+            iif += 'ENDTRNS\n'
+
+            download(`estimate-${docNum}.iif`, 'application/octet-stream', iif)
+          } catch (err) {
+            console.error('IIF export failed:', err)
+          }
+          break
+        }
         case 'draw:rectangle': {
           let first: [number, number] | null = null
           const onClick = (e: MapMouseEvent) => {
@@ -679,6 +814,7 @@ export default function MapView() {
       else if (key === 'j') useAppStore.getState().requestCommand('export:json')
       else if (key === 'p') useAppStore.getState().requestCommand('export:png')
       else if (key === 'k') useAppStore.getState().requestCommand('export:csv')
+      else if (key === 'q') useAppStore.getState().requestCommand('export:iif')
       else if (key === 'r') useAppStore.getState().requestCommand('draw:rectangle')
       else if (key === 'o') useAppStore.getState().requestCommand('draw:circle')
     }

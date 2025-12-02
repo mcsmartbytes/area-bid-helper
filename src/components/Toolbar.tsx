@@ -1,8 +1,9 @@
 "use client"
-import { useRef, useState } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import { useAppStore } from '@/lib/store'
 import { readToken } from '@/lib/token'
 import { useMounted } from '@/lib/useMounted'
+import { integrationAPI } from '@/lib/integration'
 
 export default function Toolbar() {
   const [showHelp, setShowHelp] = useState(false)
@@ -25,6 +26,21 @@ export default function Toolbar() {
   const [showMapSettings, setShowMapSettings] = useState(false)
   const [showNotes, setShowNotes] = useState(false)
   const [tokenInput, setTokenInput] = useState('')
+  const [isEmbedded, setIsEmbedded] = useState(false)
+  const [context, setContext] = useState<{ customerName?: string; jobName?: string }>({})
+
+  useEffect(() => {
+    if (integrationAPI) {
+      setIsEmbedded(integrationAPI.isEmbedded())
+      setContext(integrationAPI.getContext())
+
+      // Listen for context updates from parent
+      const unsubscribe = integrationAPI.on('PARENT_SET_CONTEXT', (data) => {
+        setContext(data)
+      })
+      return unsubscribe
+    }
+  }, [])
 
   return (
     <div className="glass toolbar">
@@ -40,11 +56,10 @@ export default function Toolbar() {
       <button className="btn" onClick={() => requestCommand('draw:circle')} title="Circle (O)">◯ Circle</button>
       <button className="btn" onClick={() => requestCommand('view:reset')} title="Reset view">⟲ Reset</button>
       <button className="btn" onClick={requestClear} title="Clear all (C)">✕ Clear</button>
-      <button className="btn" onClick={() => setShowMapSettings(true)} title="Map settings">🗺 Map</button>
       <button className="btn" onClick={toggleUnits} title="Toggle units" suppressHydrationWarning>
         Units: {mounted ? (unitSystem === 'metric' ? 'Metric' : 'Imperial') : '…'}
       </button>
-      <span className="btn" title="Map style">
+      <span className="btn btn-dropdown" title="Map style">
         <label htmlFor="style-select" style={{ cursor: 'pointer' }}>Style:</label>
         {mounted && (
           <select
@@ -52,9 +67,9 @@ export default function Toolbar() {
             name="map-style"
             value={styleId}
             onChange={(e) => setStyleId(e.target.value as any)}
-            style={{ background: 'transparent', color: 'inherit', border: 'none', outline: 'none' }}
+            style={{ background: 'transparent', color: 'inherit', border: 'none', outline: 'none', cursor: 'pointer' }}
           >
-            <option value="auto">Auto (System)</option>
+            <option value="auto">Auto</option>
             <option value="mapbox://styles/mapbox/streets-v12">Streets</option>
             <option value="mapbox://styles/mapbox/outdoors-v12">Outdoors</option>
             <option value="mapbox://styles/mapbox/satellite-streets-v12">Satellite</option>
@@ -63,8 +78,8 @@ export default function Toolbar() {
           </select>
         )}
       </span>
-      <span className="btn" title="Freehand smoothing">
-        <label htmlFor="smoothing-range" style={{ cursor: 'pointer' }}>Smoothing</label>
+      <span className="btn btn-slider" title="Freehand smoothing">
+        <label htmlFor="smoothing-range" style={{ cursor: 'pointer' }}>Smooth:</label>
         {mounted && (
           <input
             id="smoothing-range"
@@ -75,11 +90,10 @@ export default function Toolbar() {
             step={1}
             value={smoothing}
             onChange={(e) => setSmoothing(Number(e.target.value))}
-            style={{ width: 90 }}
           />
         )}
       </span>
-      <span className="btn" title="Export">
+      <span className="btn btn-dropdown" title="Export">
         <label htmlFor="export-select" style={{ cursor: 'pointer' }}>Export</label>
         <select
           id="export-select"
@@ -91,12 +105,14 @@ export default function Toolbar() {
             requestCommand(v)
             e.currentTarget.value = ''
           }}
-          style={{ background: 'transparent', color: 'inherit', border: 'none', outline: 'none' }}
+          style={{ background: 'transparent', color: 'inherit', border: 'none', outline: 'none', cursor: 'pointer' }}
         >
           <option value="">Choose…</option>
+          {isEmbedded && <option value="export:quote">📤 Send to Quote</option>}
           <option value="export:png">PNG Snapshot (P)</option>
           <option value="export:json">GeoJSON (J)</option>
           <option value="export:csv">CSV Report (K)</option>
+          <option value="export:iif">QuickBooks IIF (Q)</option>
         </select>
       </span>
       <button
@@ -123,9 +139,10 @@ export default function Toolbar() {
           e.currentTarget.value = ''
         }}
       />
-      <button className="btn" onClick={() => setShowHelp((v: boolean) => !v)} title="Help">❓ Help</button>
-      <button className="btn" onClick={() => setShowNotes(true)} title="Site Notes">📝 Notes</button>
-      <span className="btn" style={{ cursor: 'default' }}>
+      <button className="btn" onClick={() => setShowHelp((v: boolean) => !v)} title="Help">❓</button>
+      <button className="btn" onClick={() => setShowNotes(true)} title="Site Notes">📝</button>
+      <button className="btn" onClick={() => setShowMapSettings(true)} title="Settings">⚙️</button>
+      <span className="btn brand-btn" style={{ cursor: 'default' }}>
         <span className="brand">Area Bid Pro</span>
       </span>
       {showHelp && (
@@ -140,9 +157,11 @@ export default function Toolbar() {
               - Height (H): click to add height measurements.<br/>
               - Pan (V): select/move shapes.<br/>
               - Rectangle (R) and Circle (O) tools available.<br/>
-              - Clear (C), Toggle Units (U). Export: PNG (P), GeoJSON (J), CSV (K).<br/>
+              - Clear (C), Toggle Units (U).<br/>
+              - Export: PNG (P), GeoJSON (J), CSV (K), QuickBooks IIF (Q).<br/>
               - Style: use Auto to follow system light/dark.<br/>
-              - Reset view to go back to start.
+              - Reset view to go back to start.<br/>
+              - When embedded: "Send to Quote" sends data to parent website.
             </div>
             <div className="modal-actions">
               <button className="btn" onClick={() => setShowHelp(false)}>Close</button>

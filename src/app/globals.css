@@ -44,8 +44,25 @@ body {
 
 .toolbar {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   padding: 8px;
+  max-width: calc(100vw - 32px);
+}
+
+/* Ensure dropdowns and range inputs don't overflow */
+.btn-dropdown {
+  min-width: 120px;
+}
+.btn-dropdown select {
+  max-width: 80px;
+}
+.btn-slider {
+  min-width: 140px;
+}
+.btn-slider input[type="range"] {
+  width: 70px;
+  flex-shrink: 0;
 }
 
 .btn {
@@ -99,6 +116,12 @@ body {
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
+  white-space: nowrap;
+}
+
+.brand-btn {
+  flex-shrink: 0;
+  margin-left: auto;
 }
 
 /* Status bar */
