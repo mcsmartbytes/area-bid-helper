@@ -24,6 +24,12 @@ export default function MapView() {
   const textMarkersRef = useRef<Array<mapboxgl.Marker>>([])
   const [heightMeasurements, setHeightMeasurements] = useState<Array<{id: string; lng: number; lat: number; value: number; label: string}>>([])
   const heightMarkersRef = useRef<Array<mapboxgl.Marker>>([])
+  const [streetViewPrompt, setStreetViewPrompt] = useState<string | null>(null)
+  const [streetViewState, setStreetViewState] = useState<{ location: [number, number]; prev: { center: [number, number]; zoom: number; pitch: number; bearing: number } } | null>(null)
+  const streetViewCleanupRef = useRef<(() => void) | null>(null)
+  const streetMarkerRef = useRef<mapboxgl.Marker | null>(null)
+  const [mapReadyTick, setMapReadyTick] = useState(0)
+  const [mapMetrics, setMapMetrics] = useState<{ area?: number; length?: number }>({})
 
   useEffect(() => {
     setMounted(true)
@@ -35,6 +41,64 @@ export default function MapView() {
   const command = useAppStore((s) => s.command)
   const unitSystem = useAppStore((s) => s.unitSystem)
   const toggleUnits = useAppStore((s) => s.toggleUnits)
+  const enable3D = useAppStore((s) => s.enable3D)
+
+  const ensure3DLayer = () => {
+    const map = mapRef.current
+    if (!map) return
+    if (!useAppStore.getState().enable3D) return
+    try {
+      const style = map.getStyle()
+      if (!style?.sources?.composite) return
+      const layers = style.layers || []
+      const labelLayerId = layers.find((layer) => layer.type === 'symbol' && (layer as any).layout?.['text-field'])?.id
+      if (map.getLayer('3d-buildings')) {
+        map.removeLayer('3d-buildings')
+      }
+      map.addLayer({
+        id: '3d-buildings',
+        source: 'composite',
+        'source-layer': 'building',
+        filter: ['==', 'extrude', 'true'],
+        type: 'fill-extrusion',
+        minzoom: 15,
+        paint: {
+          'fill-extrusion-color': '#aaa',
+          'fill-extrusion-height': [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            15,
+            0,
+            15.05,
+            ['get', 'height']
+          ],
+          'fill-extrusion-base': [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            15,
+            0,
+            15.05,
+            ['get', 'min_height']
+          ],
+          'fill-extrusion-opacity': 0.6
+        }
+      } as any, labelLayerId as any)
+    } catch (err) {
+      console.warn('Failed to sync 3D buildings layer', err)
+    }
+  }
+
+  const clear3DLayer = () => {
+    const map = mapRef.current
+    if (!map) return
+    try {
+      if (map.getLayer('3d-buildings')) map.removeLayer('3d-buildings')
+    } catch (err) {
+      console.warn('Failed to remove 3D layer', err)
+    }
+  }
 
   useEffect(() => {
     try {
@@ -43,7 +107,7 @@ export default function MapView() {
       if (url.searchParams.has('autoinit')) setEnabled(true)
       if (url.searchParams.has('disablemap')) { setEnabled(false); setForceManual(true) }
     } catch {}
-  }, [])
+  }, [setEnabled])
 
   // Auto-enable when a token is available
   useEffect(() => {
@@ -52,7 +116,7 @@ export default function MapView() {
       const { token } = readToken()
       if (token) setEnabled(true)
     } catch {}
-  }, [skipInit, enabled, forceManual])
+  }, [skipInit, enabled, forceManual, setEnabled])
 
   useEffect(() => {
     if (skipInit || !enabled) return
@@ -99,67 +163,8 @@ export default function MapView() {
           if (cancelled) return
           try { map.setFog({ 'horizon-blend': 0.1, color: '#d2e9ff', 'high-color': '#aad4ff' } as any) } catch {}
 
-          // Enable 3D buildings layer
-          const add3DBuildings = () => {
-            try {
-              if (!useAppStore.getState().enable3D) return
-
-              // Check if the map style has a 'composite' source (Mapbox vector tiles)
-              const style = map.getStyle()
-              if (!style?.sources?.composite) {
-                console.log('3D buildings require a Mapbox vector style (streets, outdoors, satellite-streets)')
-                return
-              }
-
-              // Remove existing layer if it exists
-              if (map.getLayer('3d-buildings')) {
-                map.removeLayer('3d-buildings')
-              }
-
-              // Find the first symbol layer to insert buildings below labels
-              const layers = style.layers || []
-              const labelLayerId = layers.find(layer => layer.type === 'symbol' && (layer as any).layout?.['text-field'])?.id
-
-              // Add 3D building layer
-              map.addLayer({
-                id: '3d-buildings',
-                source: 'composite',
-                'source-layer': 'building',
-                filter: ['==', 'extrude', 'true'],
-                type: 'fill-extrusion',
-                minzoom: 15,
-                paint: {
-                  'fill-extrusion-color': '#aaa',
-                  'fill-extrusion-height': [
-                    'interpolate',
-                    ['linear'],
-                    ['zoom'],
-                    15,
-                    0,
-                    15.05,
-                    ['get', 'height']
-                  ],
-                  'fill-extrusion-base': [
-                    'interpolate',
-                    ['linear'],
-                    ['zoom'],
-                    15,
-                    0,
-                    15.05,
-                    ['get', 'min_height']
-                  ],
-                  'fill-extrusion-opacity': 0.6
-                }
-              } as any, labelLayerId)
-
-              console.log('3D buildings layer added successfully')
-            } catch (err) {
-              console.warn('Failed to add 3D buildings:', err)
-            }
-          }
-
-          // Add 3D buildings when style loads
-          map.once('idle', add3DBuildings)
+          // Add 3D buildings once the style is idle so tilt mode works immediately when enabled
+          map.once('idle', ensure3DLayer)
 
           // Controls after load
           const draw = new MapboxDraw({
@@ -200,7 +205,7 @@ export default function MapView() {
                 try { length += (turf as any).length(g as any, { units: 'kilometers' }) * 1000 } catch {}
               }
             }
-            setMeasurements({ area: area || undefined, length: length || undefined })
+            setMapMetrics({ area: area || undefined, length: length || undefined })
           }
           const computeRef: { current: () => void } = { current: compute }
 
@@ -216,7 +221,7 @@ export default function MapView() {
             if (useAppStore.getState().styleId === 'auto') {
               try {
                 map.setStyle(computeStyle('auto'))
-                map.once('style.load', add3DBuildings)
+                map.once('style.load', ensure3DLayer)
               } catch {}
             }
           }
@@ -225,7 +230,7 @@ export default function MapView() {
             if (state.styleId !== prev.styleId) {
               try {
                 map.setStyle(computeStyle(state.styleId))
-                map.once('style.load', add3DBuildings)
+                map.once('style.load', ensure3DLayer)
               } catch {}
             }
           })
@@ -325,16 +330,7 @@ export default function MapView() {
 
               const id = 'height_' + Date.now()
               const measurement = { id, lng: e.lngLat.lng, lat: e.lngLat.lat, value: valueInMeters, label }
-              setHeightMeasurements(prev => {
-                const updated = [...prev, measurement]
-                // Update store measurements
-                const current = useAppStore.getState().measurements
-                useAppStore.getState().setMeasurements({
-                  ...current,
-                  heights: updated
-                })
-                return updated
-              })
+              setHeightMeasurements(prev => [...prev, measurement])
             }
           }
           map.on('click', onMapClick)
@@ -362,12 +358,14 @@ export default function MapView() {
           }
           // Store cleanup on ref for outer dispose
           ;(map as any).__abp_cleanup = cleanup
+          setMapReadyTick((n) => n + 1)
           setMapLoading(false)
         }
 
         map.once('load', onMapLoad)
 
         return () => {
+          try { streetViewCleanupRef.current?.() } catch {}
           try { (mapRef.current as any)?.__abp_cleanup?.() } catch {}
           try { mapRef.current?.off('load', onMapLoad) } catch {}
           try { mapRef.current?.remove() } catch {}
@@ -385,6 +383,31 @@ export default function MapView() {
 
     return () => { cancelled = true }
   }, [setMeasurements, skipInit, enabled, initTick])
+
+  useEffect(() => {
+    setMeasurements({
+      area: mapMetrics.area,
+      length: mapMetrics.length,
+      heights: heightMeasurements.length ? heightMeasurements : undefined,
+    })
+  }, [mapMetrics, heightMeasurements, setMeasurements])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+    if (enable3D) {
+      if (map.isStyleLoaded()) ensure3DLayer()
+      else map.once('style.load', ensure3DLayer)
+      try {
+        map.easeTo({ pitch: Math.max(55, map.getPitch()), bearing: map.getBearing(), duration: 800, essential: true })
+      } catch {}
+    } else {
+      clear3DLayer()
+      try {
+        map.easeTo({ pitch: 0, duration: 600, essential: true })
+      } catch {}
+    }
+  }, [enable3D, mapReadyTick])
 
   // Capture unhandled rejections while initializing
   useEffect(() => {
@@ -767,6 +790,74 @@ export default function MapView() {
           } catch {}
           break
         }
+        case 'view:streetview': {
+          const canvas = map.getCanvas()
+          const prevCursor = canvas.style.cursor
+          streetViewCleanupRef.current?.()
+          if (streetMarkerRef.current) {
+            try { streetMarkerRef.current.remove() } catch {}
+            streetMarkerRef.current = null
+          }
+          setStreetViewState(null)
+          const exitSelection = () => {
+            try { map.off('click', onClick) } catch {}
+            window.removeEventListener('keydown', selectionKeyHandler)
+            try { canvas.style.cursor = prevCursor } catch {}
+            setStreetViewPrompt(null)
+            streetViewCleanupRef.current = null
+          }
+          const selectionKeyHandler = (evt: KeyboardEvent) => {
+            if (evt.key === 'Escape') exitSelection()
+          }
+          const onClick = (e: MapMouseEvent) => {
+            exitSelection()
+            const prevView = {
+              center: map.getCenter().toArray() as [number, number],
+              zoom: map.getZoom(),
+              pitch: map.getPitch(),
+              bearing: map.getBearing(),
+            }
+            const target: [number, number] = [e.lngLat.lng, e.lngLat.lat]
+            setStreetViewState({ location: target, prev: prevView })
+            const marker = new mapboxgl.Marker({ color: '#ff8c8c' }).setLngLat(target).addTo(map)
+            streetMarkerRef.current = marker
+            ensure3DLayer()
+            setStreetViewPrompt('Street mode active. Drag to look around or press Esc to exit.')
+            const exitKeyHandler = (evt: KeyboardEvent) => {
+              if (evt.key === 'Escape') streetViewCleanupRef.current?.()
+            }
+            window.addEventListener('keydown', exitKeyHandler)
+            streetViewCleanupRef.current = (restore = true) => {
+              try { marker.remove() } catch {}
+              streetMarkerRef.current = null
+              window.removeEventListener('keydown', exitKeyHandler)
+              setStreetViewState(null)
+              setStreetViewPrompt(null)
+              try { canvas.style.cursor = prevCursor } catch {}
+              if (restore) {
+                try {
+                  map.easeTo({ center: prevView.center, zoom: prevView.zoom, pitch: prevView.pitch, bearing: prevView.bearing, duration: 800, essential: true })
+                } catch {}
+              }
+            }
+            try {
+              map.easeTo({
+                center: target,
+                zoom: Math.max(17, prevView.zoom),
+                pitch: Math.max(70, prevView.pitch, 70),
+                bearing: prevView.bearing,
+                duration: 1200,
+                essential: true,
+              })
+            } catch {}
+          }
+          window.addEventListener('keydown', selectionKeyHandler)
+          map.on('click', onClick)
+          setStreetViewPrompt('Street mode: click a spot to dive in (Esc to cancel).')
+          try { canvas.style.cursor = 'crosshair' } catch {}
+          streetViewCleanupRef.current = exitSelection
+          break
+        }
         case 'import:json': {
           try {
             const payload = (command as any).payload as string | undefined
@@ -904,6 +995,18 @@ export default function MapView() {
           <div className="glass" style={{ padding: 16, borderRadius: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{ width: 20, height: 20, border: '2px solid var(--accent)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
             <div style={{ fontSize: 14, color: 'var(--fg)' }}>Loading map...</div>
+          </div>
+        </div>
+      )}
+      {(streetViewPrompt || streetViewState) && (
+        <div style={{ position: 'fixed', top: 12, left: '50%', transform: 'translateX(-50%)', zIndex: 900 }}>
+          <div className="glass" style={{ padding: '8px 12px', fontSize: 12, textAlign: 'center', display: 'flex', gap: 10, alignItems: 'center' }}>
+            <span>{streetViewPrompt}</span>
+            {streetViewState && (
+              <button className="btn" style={{ padding: '4px 8px', fontSize: 12 }} onClick={() => streetViewCleanupRef.current?.()}>
+                Exit Street
+              </button>
+            )}
           </div>
         </div>
       )}

@@ -1,9 +1,10 @@
 "use client"
-import { useRef, useState, useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useAppStore } from '@/lib/store'
 import { readToken } from '@/lib/token'
 import { useMounted } from '@/lib/useMounted'
 import { integrationAPI } from '@/lib/integration'
+import PhotoMeasureModal from '@/components/PhotoMeasureModal'
 
 export default function Toolbar() {
   const [showHelp, setShowHelp] = useState(false)
@@ -23,8 +24,13 @@ export default function Toolbar() {
   const setMapEnabled = useAppStore((s) => s.setMapEnabled)
   const notes = useAppStore((s) => s.notes)
   const setNotes = useAppStore((s) => s.setNotes)
+  const enable3D = useAppStore((s) => s.enable3D)
+  const setEnable3D = useAppStore((s) => s.setEnable3D)
   const [showMapSettings, setShowMapSettings] = useState(false)
   const [showNotes, setShowNotes] = useState(false)
+  const [showPhotoMeasure, setShowPhotoMeasure] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [isCompact, setIsCompact] = useState(false)
   const [tokenInput, setTokenInput] = useState('')
   const [isEmbedded, setIsEmbedded] = useState(false)
   const [context, setContext] = useState<{ customerName?: string; jobName?: string }>({})
@@ -33,8 +39,6 @@ export default function Toolbar() {
     if (integrationAPI) {
       setIsEmbedded(integrationAPI.isEmbedded())
       setContext(integrationAPI.getContext())
-
-      // Listen for context updates from parent
       const unsubscribe = integrationAPI.on('PARENT_SET_CONTEXT', (data) => {
         setContext(data)
       })
@@ -42,20 +46,55 @@ export default function Toolbar() {
     }
   }, [])
 
-  return (
-    <div className="glass toolbar">
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const media = window.matchMedia('(max-width: 900px)')
+    const update = () => setIsCompact(media.matches)
+    update()
+    media.addEventListener('change', update)
+    return () => media.removeEventListener('change', update)
+  }, [])
+
+  useEffect(() => {
+    if (!isCompact) setMobileMenuOpen(false)
+  }, [isCompact])
+
+  const closeMobileMenu = () => setMobileMenuOpen(false)
+  const openMapSettingsModal = () => {
+    setShowMapSettings(true)
+    if (isCompact) closeMobileMenu()
+  }
+  const openNotesModal = () => {
+    setShowNotes(true)
+    if (isCompact) closeMobileMenu()
+  }
+  const openPhotoMeasure = () => {
+    setShowPhotoMeasure(true)
+    if (isCompact) closeMobileMenu()
+  }
+  const openHelpModal = () => {
+    setShowHelp(true)
+    if (isCompact) closeMobileMenu()
+  }
+
+  const toolbarControls = (
+    <>
       <div className="segmented" role="group" aria-label="Drawing modes">
-        <button className={"btn" + (mode === 'freehand' ? ' active' : '')} onClick={() => setMode('freehand')} title="Freehand (F)">✎ Freehand</button>
-        <button className={"btn" + (mode === 'polygon' ? ' active' : '')} onClick={() => setMode('polygon')} title="Polygon (A)">⬠ Polygon</button>
-        <button className={"btn" + (mode === 'line' ? ' active' : '')} onClick={() => setMode('line')} title="Length (L)">／ Length</button>
-        <button className={"btn" + (mode === 'text' ? ' active' : '')} onClick={() => setMode('text')} title="Text Label (T)">T Text</button>
-        <button className={"btn" + (mode === 'height' ? ' active' : '')} onClick={() => setMode('height')} title="Height (H)">↕ Height</button>
-        <button className={"btn" + (mode === 'pan' ? ' active' : '')} onClick={() => setMode('pan')} title="Pan/Select (V)">🖱 Pan</button>
+        <button className={'btn' + (mode === 'freehand' ? ' active' : '')} onClick={() => setMode('freehand')} title="Freehand (F)">✎ Freehand</button>
+        <button className={'btn' + (mode === 'polygon' ? ' active' : '')} onClick={() => setMode('polygon')} title="Polygon (A)">⬠ Polygon</button>
+        <button className={'btn' + (mode === 'line' ? ' active' : '')} onClick={() => setMode('line')} title="Length (L)">／ Length</button>
+        <button className={'btn' + (mode === 'text' ? ' active' : '')} onClick={() => setMode('text')} title="Text Label (T)">T Text</button>
+        <button className={'btn' + (mode === 'height' ? ' active' : '')} onClick={() => setMode('height')} title="Height (H)">↕ Height</button>
+        <button className={'btn' + (mode === 'pan' ? ' active' : '')} onClick={() => setMode('pan')} title="Pan/Select (V)">🖱 Pan</button>
       </div>
       <button className="btn" onClick={() => requestCommand('draw:rectangle')} title="Rectangle (R)">▭ Rectangle</button>
       <button className="btn" onClick={() => requestCommand('draw:circle')} title="Circle (O)">◯ Circle</button>
       <button className="btn" onClick={() => requestCommand('view:reset')} title="Reset view">⟲ Reset</button>
+      <button className={'btn' + (enable3D ? ' active' : '')} onClick={() => setEnable3D(!enable3D)} title="Toggle 3D buildings">⬒ 3D</button>
+      <button className="btn" onClick={() => requestCommand('view:streetview')} title="Street View helper">📷 Street</button>
       <button className="btn" onClick={requestClear} title="Clear all (C)">✕ Clear</button>
+      <button className="btn" onClick={openMapSettingsModal} title="Map settings">🗺 Map</button>
+      <button className="btn" onClick={openPhotoMeasure} title="Photo measurement workspace">🖼 Photos</button>
       <button className="btn" onClick={toggleUnits} title="Toggle units" suppressHydrationWarning>
         Units: {mounted ? (unitSystem === 'metric' ? 'Metric' : 'Imperial') : '…'}
       </button>
@@ -139,12 +178,46 @@ export default function Toolbar() {
           e.currentTarget.value = ''
         }}
       />
-      <button className="btn" onClick={() => setShowHelp((v: boolean) => !v)} title="Help">❓</button>
-      <button className="btn" onClick={() => setShowNotes(true)} title="Site Notes">📝</button>
-      <button className="btn" onClick={() => setShowMapSettings(true)} title="Settings">⚙️</button>
-      <span className="btn brand-btn" style={{ cursor: 'default' }}>
+      <button className="btn" onClick={openHelpModal} title="Help">❓ Help</button>
+      <button className="btn" onClick={openNotesModal} title="Site Notes">📝 Notes</button>
+      <span className="btn" style={{ cursor: 'default' }}>
         <span className="brand">Area Bid Pro</span>
       </span>
+    </>
+  )
+
+  return (
+    <div className="toolbar-wrapper">
+      <div className="glass toolbar">
+        {!isCompact ? (
+          <div className="toolbar-content">{toolbarControls}</div>
+        ) : (
+          <div className="toolbar-mobile-shell">
+            <button className="btn" onClick={() => setMobileMenuOpen(true)} title="Open tools menu (M)">☰ Menu</button>
+            <span className="brand">Area Bid Pro</span>
+            <button className="btn" onClick={toggleUnits} title="Toggle units" suppressHydrationWarning>
+              Units: {mounted ? (unitSystem === 'metric' ? 'Metric' : 'Imperial') : '…'}
+            </button>
+          </div>
+        )}
+      </div>
+      {isCompact && mobileMenuOpen && (
+        <div className="modal-overlay" onClick={closeMobileMenu}>
+          <div className="glass modal toolbar-mobile-menu" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+            <div className="toolbar-content toolbar-stack">
+              {toolbarControls}
+              {isEmbedded && (
+                <div className="btn" style={{ justifyContent: 'center', textAlign: 'center' }}>
+                  {context.customerName ? `${context.customerName}${context.jobName ? ` – ${context.jobName}` : ''}` : 'Embedded session'}
+                </div>
+              )}
+            </div>
+            <div className="modal-actions">
+              <button className="btn" onClick={closeMobileMenu}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
       {showHelp && (
         <div className="modal-overlay" onClick={() => setShowHelp(false)}>
           <div className="glass modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
@@ -159,9 +232,8 @@ export default function Toolbar() {
               - Rectangle (R) and Circle (O) tools available.<br/>
               - Clear (C), Toggle Units (U).<br/>
               - Export: PNG (P), GeoJSON (J), CSV (K), QuickBooks IIF (Q).<br/>
-              - Style: use Auto to follow system light/dark.<br/>
-              - Reset view to go back to start.<br/>
-              - When embedded: "Send to Quote" sends data to parent website.
+              - 3D buildings toggle and Street helper live near Reset.<br/>
+              - When embedded: &ldquo;Send to Quote&rdquo; sends data to the parent site.
             </div>
             <div className="modal-actions">
               <button className="btn" onClick={() => setShowHelp(false)}>Close</button>
@@ -184,6 +256,20 @@ export default function Toolbar() {
                   <button className="btn" onClick={() => setMapEnabled(false)}>Disable Map</button>
                 )}
                 <button className="btn" onClick={() => requestCommand('view:reset')}>Reset View</button>
+              </div>
+              <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13 }}>
+                <input
+                  type="checkbox"
+                  checked={enable3D}
+                  onChange={(e) => setEnable3D(e.target.checked)}
+                  style={{ width: 16, height: 16 }}
+                />
+                Enable 3D buildings and tilt view
+              </label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 13 }}>
+                <span>Street View helper</span>
+                <button className="btn" onClick={() => { setShowMapSettings(false); requestCommand('view:streetview') }}>Launch Street View</button>
+                <span style={{ fontSize: 11, color: 'var(--muted)' }}>After launching, click anywhere on the map to enter Street mode.</span>
               </div>
               <div style={{ fontSize: 12, color: 'var(--muted)' }}>
                 Token source: {readToken().source || 'none'}
@@ -238,6 +324,9 @@ export default function Toolbar() {
             </div>
           </div>
         </div>
+      )}
+      {showPhotoMeasure && (
+        <PhotoMeasureModal onClose={() => setShowPhotoMeasure(false)} />
       )}
     </div>
   )

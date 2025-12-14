@@ -64,6 +64,48 @@ body {
   width: 70px;
   flex-shrink: 0;
 }
+.toolbar-content {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.toolbar-mobile-shell {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.toolbar-mobile-shell .brand {
+  font-size: 16px;
+}
+.toolbar-mobile-menu {
+  width: min(560px, 94vw);
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.toolbar-content.toolbar-stack {
+  flex-direction: column;
+  align-items: stretch;
+}
+.toolbar-content.toolbar-stack .segmented {
+  flex-wrap: wrap;
+}
+.toolbar-content.toolbar-stack .btn {
+  width: 100%;
+  justify-content: center;
+}
+.toolbar-content.toolbar-stack select,
+.toolbar-content.toolbar-stack input[type="range"] {
+  width: 100%;
+}
+.toolbar-content.toolbar-stack .brand {
+  width: 100%;
+  text-align: center;
+}
 
 .btn {
   display: inline-flex;
@@ -169,5 +211,132 @@ select option {
   .status-bar { padding: 10px 12px; }
   /* Scale Mapbox controls for touch */
   .mapboxgl-ctrl-group > button { width: 48px; height: 48px; }
-  .mapboxgl-ctrl-geocoder { min-width: 220px; }
+.mapboxgl-ctrl-geocoder { min-width: 220px; }
+}
+
+/* Photo measurement modal */
+.photo-modal {
+  width: min(900px, 95vw);
+  max-height: min(90vh, 900px);
+  overflow-y: auto;
+}
+.photo-uploader {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  border: 1px dashed var(--glass-border);
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 600;
+}
+.photo-uploader input {
+  display: none;
+}
+.photo-empty {
+  margin: 12px 0;
+  padding: 12px;
+  border: 1px dashed var(--glass-border);
+  border-radius: 12px;
+  text-align: center;
+  color: var(--muted);
+}
+.photo-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.photo-card {
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  padding: 12px;
+  background: rgba(17, 25, 40, 0.4);
+}
+.photo-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.photo-name {
+  font-weight: 600;
+}
+.photo-scale {
+  font-size: 12px;
+  color: var(--muted);
+}
+.photo-stage {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(255,255,255,0.04);
+  min-height: 200px;
+}
+.photo-stage img {
+  width: 100%;
+  display: block;
+  pointer-events: none;
+}
+.photo-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.photo-measure-label {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  background: rgba(0,0,0,0.6);
+  padding: 4px 6px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  pointer-events: none;
+}
+.photo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+.photo-measurements {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.photo-measure-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.photo-measure-row input {
+  flex: 1;
+  border-radius: 8px;
+  border: 1px solid var(--glass-border);
+  background: rgba(0,0,0,0.2);
+  color: inherit;
+  padding: 6px 8px;
+}
+.photo-measure-value {
+  font-size: 12px;
+  color: var(--muted);
+  min-width: 120px;
+}
+.photo-hint {
+  margin-left: 6px;
+  font-size: 11px;
+  color: var(--accent-2);
+}
+.photo-active-tool {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.05);
+  margin-bottom: 10px;
+  font-size: 13px;
 }

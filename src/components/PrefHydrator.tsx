@@ -28,7 +28,7 @@ export default function PrefHydrator() {
       else if (enable3d === '1') setEnable3D(true)
     } catch {}
     try { setHydrated() } catch {}
-  }, [setUnitSystem, setStyleId, setSmoothing, setEnable3D])
+  }, [setUnitSystem, setStyleId, setSmoothing, setEnable3D, setHydrated])
 
   return null
 }
