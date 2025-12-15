@@ -94,7 +94,7 @@ export default function Toolbar() {
       <button className="btn" onClick={() => requestCommand('view:streetview')} title="Street View helper">📷 Street</button>
       <button className="btn" onClick={requestClear} title="Clear all (C)">✕ Clear</button>
       <button className="btn" onClick={openMapSettingsModal} title="Map settings">🗺 Map</button>
-      <button className="btn" onClick={openPhotoMeasure} title="Photo measurement workspace">🖼 Photos</button>
+      <button className="btn btn-photo-measure" onClick={openPhotoMeasure} title="Photo Measure Pro - measure on photos">📐 Photo Measure</button>
       <button className="btn" onClick={toggleUnits} title="Toggle units" suppressHydrationWarning>
         Units: {mounted ? (unitSystem === 'metric' ? 'Metric' : 'Imperial') : '…'}
       </button>
