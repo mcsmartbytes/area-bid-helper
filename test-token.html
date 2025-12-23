@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Mapbox Token</title>
+    <script src='https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.js'></script>
+    <link href='https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.css' rel='stylesheet' />
+    <style>
+        body { margin: 0; padding: 20px; font-family: sans-serif; }
+        #map { width: 100%; height: 400px; margin-top: 10px; }
+        #status { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        input { width: 100%; padding: 8px; margin: 10px 0; font-family: monospace; }
+    </style>
+</head>
+<body>
+    <h2>🔑 Mapbox Token Tester</h2>
+    <p>Paste your Mapbox token below to verify it has vector tiles access:</p>
+
+    <input type="text" id="token" placeholder="pk.eyJ1Ijoi..." />
+    <button onclick="testToken()">Test Token</button>
+
+    <div id="status"></div>
+    <div id="map"></div>
+
+    <script>
+        function testToken() {
+            const token = document.getElementById('token').value.trim();
+            const status = document.getElementById('status');
+
+            if (!token) {
+                status.className = 'error';
+                status.textContent = '❌ Please enter a token';
+                return;
+            }
+
+            if (!token.startsWith('pk.')) {
+                status.className = 'error';
+                status.textContent = '❌ Token should start with "pk." (public token). Never use secret tokens (sk.) in browser!';
+                return;
+            }
+
+            mapboxgl.accessToken = token;
+
+            try {
+                const map = new mapboxgl.Map({
+                    container: 'map',
+                    style: 'mapbox://styles/mapbox/streets-v12',
+                    center: [-74.006, 40.7128], // NYC
+                    zoom: 16
+                });
+
+                map.on('load', () => {
+                    // Check if composite source exists (vector tiles)
+                    const sources = map.getStyle().sources;
+                    if (sources.composite) {
+                        status.className = 'success';
+                        status.innerHTML = '✅ <strong>Token is valid and has vector tiles access!</strong><br>3D buildings should work. Try zooming in on the map above.';
+
+                        // Add 3D buildings
+                        const layers = map.getStyle().layers;
+                        const labelLayerId = layers.find(layer => layer.type === 'symbol')?.id;
+
+                        map.addLayer({
+                            'id': '3d-buildings',
+                            'source': 'composite',
+                            'source-layer': 'building',
+                            'filter': ['==', 'extrude', 'true'],
+                            'type': 'fill-extrusion',
+                            'minzoom': 15,
+                            'paint': {
+                                'fill-extrusion-color': '#aaa',
+                                'fill-extrusion-height': ['get', 'height'],
+                                'fill-extrusion-base': ['get', 'min_height'],
+                                'fill-extrusion-opacity': 0.6
+                            }
+                        }, labelLayerId);
+                    } else {
+                        status.className = 'error';
+                        status.innerHTML = '❌ <strong>Token is valid BUT missing vector tiles access!</strong><br>Go to your Mapbox account and enable the <code>styles:tiles</code> scope.';
+                    }
+                });
+
+                map.on('error', (e) => {
+                    status.className = 'error';
+                    status.textContent = '❌ Error loading map: ' + e.error.message;
+                });
+
+            } catch (err) {
+                status.className = 'error';
+                status.textContent = '❌ Error: ' + err.message;
+            }
+        }
+    </script>
+</body>
+</html>

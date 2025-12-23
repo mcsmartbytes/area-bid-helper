@@ -4,6 +4,9 @@ node_modules/
 dist/
 out/
 coverage/
+playwright-report/
+test-results/
+.sentryclirc
 .DS_Store
 old_backup/
 *.log
