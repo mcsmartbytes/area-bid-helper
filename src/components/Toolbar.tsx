@@ -1,10 +1,14 @@
 "use client"
 import { useEffect, useRef, useState } from 'react'
 import { useAppStore } from '@/lib/store'
+import { usePricingStore } from '@/lib/pricing-store'
 import { readToken } from '@/lib/token'
 import { useMounted } from '@/lib/useMounted'
 import { integrationAPI } from '@/lib/integration'
 import PhotoMeasureModal from '@/components/PhotoMeasureModal'
+import BidBuilder from '@/components/BidBuilder'
+import PricingConfigModal from '@/components/PricingConfigModal'
+import type { MeasurementSnapshot } from '@/lib/pricing-types'
 
 export default function Toolbar() {
   const [showHelp, setShowHelp] = useState(false)
@@ -34,6 +38,22 @@ export default function Toolbar() {
   const [tokenInput, setTokenInput] = useState('')
   const [isEmbedded, setIsEmbedded] = useState(false)
   const [context, setContext] = useState<{ customerName?: string; jobName?: string }>({})
+  const [showBidBuilder, setShowBidBuilder] = useState(false)
+  const [showPricingConfig, setShowPricingConfig] = useState(false)
+
+  // Pricing store
+  const createNewBid = usePricingStore((s) => s.createNewBid)
+  const currentBid = usePricingStore((s) => s.currentBid)
+  const hydratePricing = usePricingStore((s) => s.hydrate)
+  const pricingHydrated = usePricingStore((s) => s.hydrated)
+  const measurements = useAppStore((s) => s.measurements)
+
+  // Hydrate pricing store on mount
+  useEffect(() => {
+    if (!pricingHydrated) {
+      hydratePricing()
+    }
+  }, [pricingHydrated, hydratePricing])
 
   useEffect(() => {
     if (integrationAPI) {
@@ -77,6 +97,45 @@ export default function Toolbar() {
     if (isCompact) closeMobileMenu()
   }
 
+  const openBidBuilder = () => {
+    // Convert current measurements to snapshot format
+    const area = measurements.area || 0
+    const length = measurements.length || 0
+    const heights = measurements.heights || []
+
+    // Convert from metric to imperial for the bid
+    const M2_TO_FT2 = 10.76391041671
+    const M_TO_FT = 3.280839895
+
+    const snapshot: MeasurementSnapshot = {
+      totalArea: Math.round(area * M2_TO_FT2),
+      totalPerimeter: Math.round(length * M_TO_FT),
+      shapes: [], // We don't have per-shape data easily accessible here
+      heights: heights.map((h) => ({
+        id: h.id,
+        value: Math.round(h.value * M_TO_FT * 10) / 10,
+        label: h.label,
+      })),
+    }
+
+    // Get context from integration API if embedded
+    const ctx = integrationAPI ? integrationAPI.getContext() : {}
+
+    createNewBid(snapshot, {
+      customerName: ctx.customerName,
+      jobName: ctx.jobName,
+      address: ctx.address,
+    })
+
+    setShowBidBuilder(true)
+    if (isCompact) closeMobileMenu()
+  }
+
+  const openPricingConfig = () => {
+    setShowPricingConfig(true)
+    if (isCompact) closeMobileMenu()
+  }
+
   const toolbarControls = (
     <>
       <div className="segmented" role="group" aria-label="Drawing modes">
@@ -95,6 +154,8 @@ export default function Toolbar() {
       <button className="btn" onClick={requestClear} title="Clear all (C)">✕ Clear</button>
       <button className="btn" onClick={openMapSettingsModal} title="Map settings">🗺 Map</button>
       <button className="btn btn-photo-measure" onClick={openPhotoMeasure} title="Photo Measure Pro - measure on photos">📐 Photo Measure</button>
+      <button className="btn btn-build-quote" onClick={openBidBuilder} title="Build Quote - production-aware pricing (B)">💰 Build Quote</button>
+      <button className="btn" onClick={openPricingConfig} title="Configure pricing rates">⚙ Pricing</button>
       <button className="btn" onClick={toggleUnits} title="Toggle units" suppressHydrationWarning>
         Units: {mounted ? (unitSystem === 'metric' ? 'Metric' : 'Imperial') : '…'}
       </button>
@@ -169,13 +230,14 @@ export default function Toolbar() {
         accept=".json,.geojson,application/geo+json,application/json"
         style={{ display: 'none' }}
         onChange={async (e) => {
-          const f = e.currentTarget.files?.[0]
+          const input = e.currentTarget
+          const f = input.files?.[0]
           if (!f) return
           try {
             const txt = await f.text()
             requestCommand('import:json', txt)
           } catch {}
-          e.currentTarget.value = ''
+          if (input) input.value = ''
         }}
       />
       <button className="btn" onClick={openHelpModal} title="Help">❓ Help</button>
@@ -327,6 +389,12 @@ export default function Toolbar() {
       )}
       {showPhotoMeasure && (
         <PhotoMeasureModal onClose={() => setShowPhotoMeasure(false)} />
+      )}
+      {showBidBuilder && (
+        <BidBuilder onClose={() => setShowBidBuilder(false)} />
+      )}
+      {showPricingConfig && (
+        <PricingConfigModal onClose={() => setShowPricingConfig(false)} />
       )}
     </div>
   )

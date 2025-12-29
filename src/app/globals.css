@@ -758,3 +758,537 @@ select option {
     flex-direction: column;
   }
 }
+
+/* ===== BID BUILDER STYLES ===== */
+
+.bid-builder-modal {
+  width: min(800px, 95vw);
+  max-height: min(90vh, 900px);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.bid-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--glass-border);
+  flex-shrink: 0;
+}
+.bid-header-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.bid-header-icon {
+  font-size: 28px;
+}
+.bid-header-subtitle {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.bid-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.bid-section {
+  background: rgba(0,0,0,0.15);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.bid-section-title {
+  font-weight: 600;
+  font-size: 13px;
+  margin-bottom: 10px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.bid-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+/* Job Info */
+.bid-job-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+.bid-job-fields input {
+  width: 100%;
+  padding: 8px 12px;
+  background: rgba(0,0,0,0.2);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  color: inherit;
+  font-size: 14px;
+}
+.bid-job-fields input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* Measurements Summary */
+.bid-measurements-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+.bid-measurement {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.bid-measurement-label {
+  font-size: 12px;
+  color: var(--muted);
+}
+.bid-measurement-value {
+  font-size: 18px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Line Items */
+.bid-empty-items {
+  text-align: center;
+  padding: 30px 20px;
+  color: var(--muted);
+  font-size: 14px;
+  border: 1px dashed var(--glass-border);
+  border-radius: 10px;
+}
+
+.bid-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.bid-line-item {
+  background: rgba(0,0,0,0.2);
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.bid-line-item-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.bid-line-item-info {
+  flex: 1;
+  min-width: 0;
+}
+.bid-line-item-name {
+  font-weight: 600;
+  font-size: 14px;
+}
+.bid-line-item-meta {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.bid-line-item-price {
+  font-size: 18px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.bid-override-badge {
+  font-size: 10px;
+  background: rgba(255,200,0,0.2);
+  color: #ffc800;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.bid-line-item-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.bid-line-item-breakdown {
+  display: flex;
+  gap: 16px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--glass-border);
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.bid-line-item-edit {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--glass-border);
+}
+.bid-line-item-edit-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.bid-line-item-edit-field label {
+  font-size: 11px;
+  color: var(--muted);
+}
+.bid-line-item-edit-field input {
+  padding: 6px 10px;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid var(--glass-border);
+  border-radius: 6px;
+  color: inherit;
+  width: 120px;
+}
+
+/* Add Service */
+.bid-add-service {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 12px;
+  background: rgba(122,162,255,0.1);
+  border: 1px solid rgba(122,162,255,0.3);
+  border-radius: 10px;
+}
+.bid-add-service select {
+  flex: 1;
+  min-width: 180px;
+  padding: 8px 12px;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  color: inherit;
+}
+.bid-add-service input {
+  padding: 8px 12px;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  color: inherit;
+}
+
+/* Margin Control */
+.bid-margin-control {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.bid-margin-control input[type="range"] {
+  flex: 1;
+  height: 8px;
+  -webkit-appearance: none;
+  background: rgba(255,255,255,0.1);
+  border-radius: 4px;
+}
+.bid-margin-control input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 20px;
+  height: 20px;
+  background: var(--accent);
+  border-radius: 50%;
+  cursor: pointer;
+}
+.bid-margin-value {
+  font-size: 24px;
+  font-weight: 700;
+  min-width: 60px;
+  text-align: right;
+  color: var(--accent);
+}
+
+/* Risk Flags */
+.bid-risk-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.bid-risk-flag {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+.bid-risk-flag.warning {
+  background: rgba(255,200,0,0.1);
+  border: 1px solid rgba(255,200,0,0.3);
+  color: #ffc800;
+}
+.bid-risk-flag.error {
+  background: rgba(255,100,100,0.1);
+  border: 1px solid rgba(255,100,100,0.3);
+  color: #ff6464;
+}
+.bid-risk-icon {
+  font-size: 16px;
+}
+
+/* Totals */
+.bid-totals-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.bid-total-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+}
+.bid-total-row.bid-subtotal {
+  padding-top: 8px;
+  border-top: 1px solid var(--glass-border);
+  font-weight: 600;
+}
+.bid-total-row.bid-grand-total {
+  padding-top: 12px;
+  margin-top: 4px;
+  border-top: 2px solid var(--accent);
+  font-size: 20px;
+  font-weight: 700;
+}
+.bid-total-row.bid-grand-total span:last-child {
+  color: var(--accent);
+  font-size: 24px;
+}
+
+/* Bid Actions */
+.bid-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* Build Quote button highlight */
+.btn-build-quote {
+  background: linear-gradient(135deg, rgba(0,200,100,0.3), rgba(122,162,255,0.2));
+  border-color: rgba(0,200,100,0.5);
+}
+.btn-build-quote:hover {
+  background: linear-gradient(135deg, rgba(0,200,100,0.5), rgba(122,162,255,0.3));
+}
+
+/* ===== PRICING CONFIG MODAL STYLES ===== */
+
+.pricing-config-modal {
+  width: min(700px, 95vw);
+  max-height: min(90vh, 800px);
+  overflow-y: auto;
+}
+
+.pricing-section {
+  background: rgba(0,0,0,0.15);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.pricing-section-title {
+  font-weight: 600;
+  font-size: 13px;
+  margin-bottom: 12px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.pricing-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.pricing-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+}
+
+.pricing-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.pricing-field label {
+  font-size: 12px;
+  color: var(--muted);
+}
+.pricing-field input,
+.pricing-field select {
+  padding: 8px 10px;
+  background: rgba(0,0,0,0.2);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  color: inherit;
+  font-size: 14px;
+}
+.pricing-field input:focus,
+.pricing-field select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.pricing-hint {
+  font-size: 10px;
+  color: var(--muted);
+  opacity: 0.7;
+}
+
+.pricing-input-group {
+  display: flex;
+  align-items: center;
+}
+.pricing-input-group input {
+  flex: 1;
+  border-radius: 8px 0 0 8px;
+  min-width: 60px;
+}
+.pricing-input-prefix {
+  padding: 8px 10px;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid var(--glass-border);
+  border-right: none;
+  border-radius: 8px 0 0 8px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.pricing-input-prefix + input {
+  border-radius: 0;
+}
+.pricing-input-suffix {
+  padding: 8px 10px;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid var(--glass-border);
+  border-left: none;
+  border-radius: 0 8px 8px 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+.pricing-input-group input:only-of-type {
+  border-radius: 8px 0 0 8px;
+}
+
+/* Service List */
+.service-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.service-item {
+  background: rgba(0,0,0,0.2);
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.service-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.service-item-info {
+  flex: 1;
+  min-width: 0;
+}
+.service-name {
+  font-weight: 600;
+  font-size: 14px;
+}
+.service-meta {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.service-item-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.service-edit-form {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--glass-border);
+}
+
+/* Add Service Form */
+.add-service-form {
+  background: rgba(122,162,255,0.1);
+  border-color: rgba(122,162,255,0.3);
+}
+
+.add-service-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--glass-border);
+}
+
+/* Mobile adjustments for Bid Builder */
+@media (max-width: 640px) {
+  .bid-builder-modal {
+    width: 100vw;
+    max-height: 100vh;
+    border-radius: 0;
+  }
+  .bid-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .bid-line-item-main {
+    flex-wrap: wrap;
+  }
+  .bid-line-item-price {
+    width: 100%;
+    justify-content: flex-end;
+  }
+  .bid-margin-control {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .bid-margin-value {
+    text-align: center;
+  }
+  .pricing-config-modal {
+    width: 100vw;
+    max-height: 100vh;
+    border-radius: 0;
+  }
+}
