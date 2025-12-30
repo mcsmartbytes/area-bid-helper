@@ -40,6 +40,7 @@ export default function MapView() {
   const [commitTick, setCommitTick] = useState(0)
   const committedMetricsRef = useRef<{ areaSqM: number; lengthM: number }>({ areaSqM: 0, lengthM: 0 })
   const heightMeasurementsRef = useRef(heightMeasurements)
+  const computeMeasurementsRef = useRef<(() => void) | null>(null)
 
   useEffect(() => {
     setMounted(true)
@@ -331,6 +332,10 @@ export default function MapView() {
             emitLiveSnapshot(area || 0, length || 0)
           }
           const computeRef: { current: () => void } = { current: compute }
+          computeMeasurementsRef.current = () => {
+            compute()
+            persistCommittedGeometry()
+          }
 
           const onCreate = () => {
             compute()
@@ -909,6 +914,7 @@ export default function MapView() {
                 geometry: { type: 'Polygon', coordinates: [[[minX, minY], [maxX, minY], [maxX, maxY], [minX, maxY], [minX, minY]]] },
               }
               try { draw.add(rect) } catch {}
+              computeMeasurementsRef.current?.()
               map.off('click', onClick)
               first = null
             }
@@ -930,6 +936,7 @@ export default function MapView() {
               try {
                 const circle = t.circle(center, miles, { steps: 128, units: 'miles' })
                 draw.add(circle)
+                computeMeasurementsRef.current?.()
               } catch {}
             }).finally(() => map.off('click', once))
           }
@@ -1028,6 +1035,7 @@ export default function MapView() {
               // try treating as geometry
               if (parsed?.type && parsed?.coordinates) addFeature({ type: 'Feature', properties: {}, geometry: parsed })
             }
+            computeMeasurementsRef.current?.()
           } catch {}
           break
         }
