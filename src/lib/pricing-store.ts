@@ -31,6 +31,9 @@ type PricingStore = {
 
   // Current bid being built
   currentBid: Bid | null;
+  previewBid: Bid | null;
+  liveMeasurements: MeasurementSnapshot | null;
+  committedMeasurements: MeasurementSnapshot | null;
 
   // UI state
   bidBuilderOpen: boolean;
@@ -46,7 +49,7 @@ type PricingStore = {
   updatePricingConfig: (updates: Partial<Omit<PricingConfig, 'id' | 'serviceTypes'>>) => void;
 
   // Bid actions
-  createNewBid: (measurements: MeasurementSnapshot, context?: {
+  createNewBid: (measurements?: MeasurementSnapshot, context?: {
     customerId?: string;
     customerName?: string;
     jobId?: string;
@@ -60,6 +63,9 @@ type PricingStore = {
   updateLineItem: (lineItemId: string, updates: { quantity?: number; description?: string; overridePrice?: number }) => void;
   setMargin: (margin: number) => void;
   updateBidContext: (context: Partial<Pick<Bid, 'customerName' | 'jobName' | 'address' | 'notes'>>) => void;
+  updateLiveMeasurements: (snapshot: MeasurementSnapshot) => void;
+  commitMeasurements: (snapshot?: MeasurementSnapshot) => void;
+  runFinalPricing: () => void;
 
   // UI actions
   openBidBuilder: () => void;
@@ -80,6 +86,9 @@ export const usePricingStore = create<PricingStore>((set, get) => ({
   pricingConfigs: [DEFAULT_PRICING_CONFIG],
   activePricingConfigId: 'default',
   currentBid: null,
+  previewBid: null,
+  liveMeasurements: null,
+  committedMeasurements: null,
   bidBuilderOpen: false,
   pricingConfigOpen: false,
   hydrated: false,
@@ -165,15 +174,63 @@ export const usePricingStore = create<PricingStore>((set, get) => ({
     set({ pricingConfigs: updatedConfigs });
   },
 
+  updateLiveMeasurements: (snapshot) => {
+    const currentBid = get().currentBid;
+    const previewBid = currentBid
+      ? {
+          ...currentBid,
+          measurements: snapshot,
+          updatedAt: new Date().toISOString(),
+        }
+      : null;
+    set({
+      liveMeasurements: snapshot,
+      previewBid,
+    });
+  },
+
+  commitMeasurements: (snapshot) => {
+    const incoming = snapshot ?? get().liveMeasurements;
+    if (!incoming) return;
+    set({ committedMeasurements: incoming });
+    if (get().currentBid) {
+      get().runFinalPricing();
+    }
+  },
+
+  runFinalPricing: () => {
+    const { committedMeasurements, currentBid } = get();
+    if (!committedMeasurements || !currentBid) return;
+    const config = get().getActiveConfig();
+    const updatedBid: Bid = {
+      ...currentBid,
+      measurements: committedMeasurements,
+      updatedAt: new Date().toISOString(),
+    };
+    const withTotals = calculateBidTotals(updatedBid);
+    set({
+      currentBid: {
+        ...withTotals,
+        riskFlags: assessRisks(withTotals, config),
+      },
+      previewBid: null,
+    });
+  },
+
   // Bid actions
   createNewBid: (measurements, context) => {
+    const snapshot = measurements ?? get().committedMeasurements ?? get().liveMeasurements;
     const config = get().getActiveConfig();
-    const bid = createBidFromMeasurements(measurements, config, context);
-    set({ currentBid: bid, bidBuilderOpen: true });
+    if (!snapshot) {
+      set({ currentBid: null, previewBid: null, bidBuilderOpen: true });
+      return;
+    }
+    const bid = createBidFromMeasurements(snapshot, config, context);
+    set({ currentBid: bid, previewBid: null, bidBuilderOpen: true });
   },
 
   clearCurrentBid: () => {
-    set({ currentBid: null });
+    set({ currentBid: null, previewBid: null });
   },
 
   addLineItem: (serviceTypeId, quantity, description) => {
@@ -185,7 +242,7 @@ export const usePricingStore = create<PricingStore>((set, get) => ({
     if (!serviceType) return;
 
     const updatedBid = addLineItemToBid(currentBid, serviceType, quantity, config, description);
-    set({ currentBid: updatedBid });
+    set({ currentBid: updatedBid, previewBid: null });
   },
 
   removeLineItem: (lineItemId) => {
@@ -194,7 +251,7 @@ export const usePricingStore = create<PricingStore>((set, get) => ({
 
     const config = get().getActiveConfig();
     const updatedBid = removeLineItemFromBid(currentBid, lineItemId, config);
-    set({ currentBid: updatedBid });
+    set({ currentBid: updatedBid, previewBid: null });
   },
 
   updateLineItem: (lineItemId, updates) => {
@@ -203,7 +260,7 @@ export const usePricingStore = create<PricingStore>((set, get) => ({
 
     const config = get().getActiveConfig();
     const updatedBid = updateLineItemInBid(currentBid, lineItemId, updates, config);
-    set({ currentBid: updatedBid });
+    set({ currentBid: updatedBid, previewBid: null });
   },
 
   setMargin: (margin) => {
@@ -212,7 +269,7 @@ export const usePricingStore = create<PricingStore>((set, get) => ({
 
     const config = get().getActiveConfig();
     const updatedBid = updateBidMargin(currentBid, margin, config);
-    set({ currentBid: updatedBid });
+    set({ currentBid: updatedBid, previewBid: null });
   },
 
   updateBidContext: (context) => {
@@ -232,6 +289,7 @@ export const usePricingStore = create<PricingStore>((set, get) => ({
         ...withTotals,
         riskFlags: assessRisks(withTotals, config),
       },
+      previewBid: null,
     });
   },
 

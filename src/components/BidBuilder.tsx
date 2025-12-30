@@ -13,6 +13,8 @@ interface BidBuilderProps {
 
 export default function BidBuilder({ onClose }: BidBuilderProps) {
   const currentBid = usePricingStore((s) => s.currentBid)
+  const previewBid = usePricingStore((s) => s.previewBid)
+  const committedMeasurements = usePricingStore((s) => s.committedMeasurements)
   const getActiveConfig = usePricingStore((s) => s.getActiveConfig)
   const addLineItem = usePricingStore((s) => s.addLineItem)
   const removeLineItem = usePricingStore((s) => s.removeLineItem)
@@ -20,6 +22,7 @@ export default function BidBuilder({ onClose }: BidBuilderProps) {
   const setMargin = usePricingStore((s) => s.setMargin)
   const updateBidContext = usePricingStore((s) => s.updateBidContext)
   const closeBidBuilder = usePricingStore((s) => s.closeBidBuilder)
+  const runFinalPricing = usePricingStore((s) => s.runFinalPricing)
 
   const unitSystem = useAppStore((s) => s.unitSystem)
   const requestCommand = useAppStore((s) => s.requestCommand)
@@ -31,12 +34,15 @@ export default function BidBuilder({ onClose }: BidBuilderProps) {
 
   const config = getActiveConfig()
 
-  const costBreakdown = useMemo(() => {
-    if (!currentBid) return null
-    return getCostBreakdown(currentBid)
-  }, [currentBid])
+  const bid = previewBid ?? currentBid
+  const isPreview = Boolean(previewBid)
 
-  if (!currentBid) {
+  const costBreakdown = useMemo(() => {
+    if (!bid) return null
+    return getCostBreakdown(bid)
+  }, [bid])
+
+  if (!bid) {
     return (
       <div className="modal-overlay" onClick={onClose}>
         <div className="glass modal bid-builder-modal" onClick={(e) => e.stopPropagation()}>
@@ -57,7 +63,7 @@ export default function BidBuilder({ onClose }: BidBuilderProps) {
   }
 
   const handleAddLineItem = () => {
-    if (!selectedServiceId) return
+    if (!selectedServiceId || !bid) return
 
     const service = config.serviceTypes.find((s) => s.id === selectedServiceId)
     if (!service) return
@@ -66,9 +72,9 @@ export default function BidBuilder({ onClose }: BidBuilderProps) {
     let quantity = customQuantity || 0
     if (!quantity) {
       if (service.pricingModel === 'area') {
-        quantity = currentBid.measurements.totalArea
+        quantity = bid.measurements.totalArea
       } else if (service.pricingModel === 'linear') {
-        quantity = currentBid.measurements.totalPerimeter
+        quantity = bid.measurements.totalPerimeter
       } else {
         quantity = 1
       }
@@ -81,33 +87,33 @@ export default function BidBuilder({ onClose }: BidBuilderProps) {
   }
 
   const handleExportCSV = () => {
-    if (!currentBid) return
+    if (!bid) return
 
     let csv = 'Quote Summary\n'
     csv += `Generated: ${new Date().toLocaleString()}\n`
-    if (currentBid.customerName) csv += `Customer: ${currentBid.customerName}\n`
-    if (currentBid.jobName) csv += `Job: ${currentBid.jobName}\n`
-    if (currentBid.address) csv += `Address: ${currentBid.address}\n`
+    if (bid.customerName) csv += `Customer: ${bid.customerName}\n`
+    if (bid.jobName) csv += `Job: ${bid.jobName}\n`
+    if (bid.address) csv += `Address: ${bid.address}\n`
     csv += '\n'
 
     csv += 'Measurements\n'
-    csv += `Total Area: ${currentBid.measurements.totalArea.toLocaleString()} sq ft\n`
-    csv += `Total Perimeter: ${currentBid.measurements.totalPerimeter.toLocaleString()} ft\n`
+    csv += `Total Area: ${bid.measurements.totalArea.toLocaleString()} sq ft\n`
+    csv += `Total Perimeter: ${bid.measurements.totalPerimeter.toLocaleString()} ft\n`
     csv += '\n'
 
     csv += 'Service,Quantity,Unit,Labor Hrs,Labor $,Material $,Equipment $,Subtotal\n'
-    currentBid.lineItems.forEach((li) => {
+    bid.lineItems.forEach((li) => {
       csv += `"${li.serviceName}",${li.quantity.toFixed(1)},${li.unit},${li.laborHours.toFixed(2)},${li.laborCost.toFixed(2)},${li.materialCost.toFixed(2)},${li.equipmentCost.toFixed(2)},${(li.overridePrice ?? li.subtotal).toFixed(2)}\n`
     })
     csv += '\n'
 
-    csv += `Subtotal,,,,,,,$${currentBid.subtotal.toFixed(2)}\n`
-    csv += `Margin (${(currentBid.margin * 100).toFixed(0)}%),,,,,,,$${currentBid.marginAmount.toFixed(2)}\n`
-    csv += `TOTAL,,,,,,,$${currentBid.total.toFixed(2)}\n`
+    csv += `Subtotal,,,,,,,$${bid.subtotal.toFixed(2)}\n`
+    csv += `Margin (${(bid.margin * 100).toFixed(0)}%),,,,,,,$${bid.marginAmount.toFixed(2)}\n`
+    csv += `TOTAL,,,,,,,$${bid.total.toFixed(2)}\n`
 
-    if (currentBid.riskFlags.length > 0) {
+    if (bid.riskFlags.length > 0) {
       csv += '\nRisk Flags\n'
-      currentBid.riskFlags.forEach((flag) => {
+      bid.riskFlags.forEach((flag) => {
         csv += `${flag.severity.toUpperCase()}: ${flag.message}\n`
       })
     }
@@ -116,7 +122,7 @@ export default function BidBuilder({ onClose }: BidBuilderProps) {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `quote-${currentBid.id.slice(4, 12)}.csv`
+    a.download = `quote-${bid.id.slice(4, 12)}.csv`
     document.body.appendChild(a)
     a.click()
     a.remove()
@@ -124,30 +130,30 @@ export default function BidBuilder({ onClose }: BidBuilderProps) {
   }
 
   const handleExportIIF = () => {
-    if (!currentBid) return
+    if (!bid) return
 
-    const docNum = `Q${currentBid.id.slice(4, 12).toUpperCase()}`
+    const docNum = `Q${bid.id.slice(4, 12).toUpperCase()}`
     const today = new Date().toISOString().split('T')[0]
-    const memo = currentBid.notes || `Quote for ${currentBid.customerName || 'Customer'}`
+    const memo = bid.notes || `Quote for ${bid.customerName || 'Customer'}`
 
     let iif = '!TRNS\tTRNSTYPE\tDATE\tACCNT\tNAME\tAMOUNT\tDOCNUM\tMEMO\n'
     iif += '!SPL\tTRNSTYPE\tDATE\tACCNT\tNAME\tAMOUNT\tQNTY\tRATE\tINVITEM\tMEMO\n'
     iif += '!ENDTRNS\n'
 
     // Header transaction
-    iif += `TRNS\tESTIMATE\t${today}\tAccounts Receivable\t${currentBid.customerName || 'Customer'}\t${currentBid.total.toFixed(2)}\t${docNum}\t${memo}\n`
+    iif += `TRNS\tESTIMATE\t${today}\tAccounts Receivable\t${bid.customerName || 'Customer'}\t${bid.total.toFixed(2)}\t${docNum}\t${memo}\n`
 
     // Line items
-    currentBid.lineItems.forEach((li) => {
+    bid.lineItems.forEach((li) => {
       const effectivePrice = li.overridePrice ?? li.subtotal
       const rate = li.quantity > 0 ? effectivePrice / li.quantity : 0
       const desc = li.description || li.serviceName
-      iif += `SPL\tESTIMATE\t${today}\tSales\t${currentBid.customerName || 'Customer'}\t-${effectivePrice.toFixed(2)}\t${li.quantity.toFixed(2)}\t${rate.toFixed(4)}\t${li.serviceName}\t${desc}\n`
+      iif += `SPL\tESTIMATE\t${today}\tSales\t${bid.customerName || 'Customer'}\t-${effectivePrice.toFixed(2)}\t${li.quantity.toFixed(2)}\t${rate.toFixed(4)}\t${li.serviceName}\t${desc}\n`
     })
 
     // Margin as separate line if applicable
-    if (currentBid.marginAmount > 0) {
-      iif += `SPL\tESTIMATE\t${today}\tSales\t${currentBid.customerName || 'Customer'}\t-${currentBid.marginAmount.toFixed(2)}\t1\t${currentBid.marginAmount.toFixed(2)}\tMargin\tProfit Margin ${(currentBid.margin * 100).toFixed(0)}%\n`
+    if (bid.marginAmount > 0) {
+      iif += `SPL\tESTIMATE\t${today}\tSales\t${bid.customerName || 'Customer'}\t-${bid.marginAmount.toFixed(2)}\t1\t${bid.marginAmount.toFixed(2)}\tMargin\tProfit Margin ${(bid.margin * 100).toFixed(0)}%\n`
     }
 
     iif += 'ENDTRNS\n'
@@ -163,7 +169,7 @@ export default function BidBuilder({ onClose }: BidBuilderProps) {
     URL.revokeObjectURL(url)
   }
 
-  const totalLaborHours = currentBid.lineItems.reduce((sum, li) => sum + li.laborHours, 0)
+  const totalLaborHours = bid.lineItems.reduce((sum, li) => sum + li.laborHours, 0)
 
   return (
     <div className="modal-overlay" onClick={onClose} style={{ alignItems: 'flex-start', paddingTop: 20 }}>
@@ -182,13 +188,23 @@ export default function BidBuilder({ onClose }: BidBuilderProps) {
               <div className="bid-header-subtitle">Production-aware pricing</div>
             </div>
           </div>
-          <button
-            className="btn btn-sm"
-            onClick={() => setShowPricingConfig(true)}
-            title="Configure pricing rates"
-          >
-            ⚙ Pricing Settings
-          </button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              className="btn btn-sm"
+              onClick={() => setShowPricingConfig(true)}
+              title="Configure pricing rates"
+            >
+              ⚙ Pricing Settings
+            </button>
+            <button
+              className="btn btn-sm"
+              onClick={runFinalPricing}
+              title="Apply the latest committed measurements"
+              disabled={!currentBid || !committedMeasurements}
+            >
+              ↻ Recalculate
+            </button>
+          </div>
         </div>
 
         <div className="bid-content">
@@ -199,19 +215,19 @@ export default function BidBuilder({ onClose }: BidBuilderProps) {
               <input
                 type="text"
                 placeholder="Customer Name"
-                value={currentBid.customerName || ''}
+                value={bid.customerName || ''}
                 onChange={(e) => updateBidContext({ customerName: e.target.value })}
               />
               <input
                 type="text"
                 placeholder="Job Name"
-                value={currentBid.jobName || ''}
+                value={bid.jobName || ''}
                 onChange={(e) => updateBidContext({ jobName: e.target.value })}
               />
               <input
                 type="text"
                 placeholder="Address"
-                value={currentBid.address || ''}
+                value={bid.address || ''}
                 onChange={(e) => updateBidContext({ address: e.target.value })}
               />
             </div>
@@ -220,24 +236,38 @@ export default function BidBuilder({ onClose }: BidBuilderProps) {
           {/* Measurements Summary */}
           <div className="bid-section bid-measurements">
             <div className="bid-section-title">Measurements (from map)</div>
+            {isPreview && (
+              <div
+                style={{
+                  background: 'rgba(255,255,255,0.08)',
+                  border: '1px dashed var(--glass-border)',
+                  padding: '8px 12px',
+                  borderRadius: 10,
+                  fontSize: 12,
+                  marginBottom: 12,
+                }}
+              >
+                Previewing live measurements – finish drawing or click Recalculate to lock them in.
+              </div>
+            )}
             <div className="bid-measurements-grid">
               <div className="bid-measurement">
                 <span className="bid-measurement-label">Total Area</span>
                 <span className="bid-measurement-value">
-                  {currentBid.measurements.totalArea.toLocaleString()} sq ft
+                  {bid.measurements.totalArea.toLocaleString()} sq ft
                 </span>
               </div>
               <div className="bid-measurement">
                 <span className="bid-measurement-label">Total Perimeter</span>
                 <span className="bid-measurement-value">
-                  {currentBid.measurements.totalPerimeter.toLocaleString()} ft
+                  {bid.measurements.totalPerimeter.toLocaleString()} ft
                 </span>
               </div>
-              {currentBid.measurements.heights.length > 0 && (
+              {bid.measurements.heights.length > 0 && (
                 <div className="bid-measurement">
                   <span className="bid-measurement-label">Heights</span>
                   <span className="bid-measurement-value">
-                    {currentBid.measurements.heights.length} measured
+                    {bid.measurements.heights.length} measured
                   </span>
                 </div>
               )}
@@ -256,13 +286,13 @@ export default function BidBuilder({ onClose }: BidBuilderProps) {
               </button>
             </div>
 
-            {currentBid.lineItems.length === 0 ? (
+            {bid.lineItems.length === 0 ? (
               <div className="bid-empty-items">
                 Click "Add Service" to start building your quote
               </div>
             ) : (
               <div className="bid-items-list">
-                {currentBid.lineItems.map((li) => (
+              {bid.lineItems.map((li) => (
                   <LineItemRow
                     key={li.id}
                     lineItem={li}
@@ -309,7 +339,7 @@ export default function BidBuilder({ onClose }: BidBuilderProps) {
           </div>
 
           {/* Margin Slider */}
-          {currentBid.lineItems.length > 0 && (
+          {bid.lineItems.length > 0 && (
             <div className="bid-section bid-margin">
               <div className="bid-section-title">Profit Margin</div>
               <div className="bid-margin-control">
@@ -318,20 +348,20 @@ export default function BidBuilder({ onClose }: BidBuilderProps) {
                   min={0}
                   max={50}
                   step={1}
-                  value={currentBid.margin * 100}
+                  value={bid.margin * 100}
                   onChange={(e) => setMargin(Number(e.target.value) / 100)}
                 />
-                <span className="bid-margin-value">{(currentBid.margin * 100).toFixed(0)}%</span>
+                <span className="bid-margin-value">{(bid.margin * 100).toFixed(0)}%</span>
               </div>
             </div>
           )}
 
           {/* Risk Flags */}
-          {currentBid.riskFlags.length > 0 && (
+          {bid.riskFlags.length > 0 && (
             <div className="bid-section bid-risks">
               <div className="bid-section-title">Risk Indicators</div>
               <div className="bid-risk-list">
-                {currentBid.riskFlags.map((flag, i) => (
+                {bid.riskFlags.map((flag, i) => (
                   <div key={i} className={`bid-risk-flag ${flag.severity}`}>
                     <span className="bid-risk-icon">
                       {flag.severity === 'error' ? '⛔' : '⚠️'}
@@ -344,7 +374,7 @@ export default function BidBuilder({ onClose }: BidBuilderProps) {
           )}
 
           {/* Totals */}
-          {currentBid.lineItems.length > 0 && (
+          {bid.lineItems.length > 0 && (
             <div className="bid-section bid-totals">
               <div className="bid-totals-breakdown">
                 <div className="bid-total-row">
@@ -369,15 +399,15 @@ export default function BidBuilder({ onClose }: BidBuilderProps) {
                 )}
                 <div className="bid-total-row bid-subtotal">
                   <span>Subtotal</span>
-                  <span>{formatCurrency(currentBid.subtotal)}</span>
+                  <span>{formatCurrency(bid.subtotal)}</span>
                 </div>
                 <div className="bid-total-row">
-                  <span>Margin ({(currentBid.margin * 100).toFixed(0)}%)</span>
-                  <span>{formatCurrency(currentBid.marginAmount)}</span>
+                  <span>Margin ({(bid.margin * 100).toFixed(0)}%)</span>
+                  <span>{formatCurrency(bid.marginAmount)}</span>
                 </div>
                 <div className="bid-total-row bid-grand-total">
                   <span>TOTAL</span>
-                  <span>{formatCurrency(currentBid.total)}</span>
+                  <span>{formatCurrency(bid.total)}</span>
                 </div>
               </div>
             </div>

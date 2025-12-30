@@ -4,6 +4,11 @@ import { createPortal } from 'react-dom'
 import mapboxgl, { type MapMouseEvent } from 'mapbox-gl'
 import { useAppStore } from '@/lib/store'
 import { readToken } from '@/lib/token'
+import { usePricingStore } from '@/lib/pricing-store'
+import type { MeasurementSnapshot } from '@/lib/pricing-types'
+
+const SQFT_PER_SQM = 10.76391041671
+const FT_PER_METER = 3.2808398950131
 
 export default function MapView() {
   const mapRef = useRef<mapboxgl.Map | null>(null)
@@ -29,11 +34,20 @@ export default function MapView() {
   const streetViewCleanupRef = useRef<(() => void) | null>(null)
   const streetMarkerRef = useRef<mapboxgl.Marker | null>(null)
   const [mapReadyTick, setMapReadyTick] = useState(0)
-  const [mapMetrics, setMapMetrics] = useState<{ area?: number; length?: number }>({})
+  const committedFeaturesRef = useRef<any[]>([])
+  const pendingCommitRef = useRef(false)
+  const turfRef = useRef<any>(null)
+  const [commitTick, setCommitTick] = useState(0)
+  const committedMetricsRef = useRef<{ areaSqM: number; lengthM: number }>({ areaSqM: 0, lengthM: 0 })
+  const heightMeasurementsRef = useRef(heightMeasurements)
 
   useEffect(() => {
     setMounted(true)
   }, [])
+
+  useEffect(() => {
+    heightMeasurementsRef.current = heightMeasurements
+  }, [heightMeasurements])
 
   const mode = useAppStore((s) => s.mode)
   const setMeasurements = useAppStore((s) => s.setMeasurements)
@@ -42,6 +56,114 @@ export default function MapView() {
   const unitSystem = useAppStore((s) => s.unitSystem)
   const toggleUnits = useAppStore((s) => s.toggleUnits)
   const enable3D = useAppStore((s) => s.enable3D)
+  const updateLivePricingMeasurements = usePricingStore((s) => s.updateLiveMeasurements)
+  const commitPricingMeasurements = usePricingStore((s) => s.commitMeasurements)
+
+  const formatHeightsForSnapshot = () => {
+    const heights = heightMeasurementsRef.current || []
+    return heights.map((h) => ({
+      id: h.id,
+      value: Math.round(h.value * FT_PER_METER * 10) / 10,
+      label: h.label,
+    }))
+  }
+
+  const emitLiveSnapshot = (areaSqM?: number, lengthM?: number) => {
+    const snapshot: MeasurementSnapshot = {
+      totalArea: Math.round((areaSqM || 0) * SQFT_PER_SQM),
+      totalPerimeter: Math.round((lengthM || 0) * FT_PER_METER),
+      shapes: [],
+      heights: formatHeightsForSnapshot(),
+    }
+    updateLivePricingMeasurements(snapshot)
+  }
+
+  const buildSnapshotFromFeatures = (features: any[]) => {
+    const turf = turfRef.current
+    let areaSqM = 0
+    let lengthM = 0
+    const shapes: MeasurementSnapshot['shapes'] = []
+    if (turf && Array.isArray(features)) {
+      features.forEach((feature: any, index: number) => {
+        const geometryType = feature?.geometry?.type
+        if (geometryType === 'Polygon' || geometryType === 'MultiPolygon') {
+          try {
+            const featureArea = turf.area(feature)
+            areaSqM += featureArea
+            let perimMeters = 0
+            try {
+              const line = turf.polygonToLine(feature)
+              perimMeters = turf.length(line, { units: 'meters' })
+            } catch {}
+            shapes.push({
+              id: feature.id || `shape-${index + 1}`,
+              type: geometryType,
+              area: Math.round(featureArea * SQFT_PER_SQM),
+              perimeter: Math.round(perimMeters * FT_PER_METER),
+            })
+          } catch {}
+        } else if (geometryType === 'LineString' || geometryType === 'MultiLineString') {
+          try {
+            const lengthMeters = turf.length(feature, { units: 'meters' })
+            lengthM += lengthMeters
+            shapes.push({
+              id: feature.id || `shape-${index + 1}`,
+              type: geometryType,
+              area: 0,
+              perimeter: Math.round(lengthMeters * FT_PER_METER),
+            })
+          } catch {}
+        }
+      })
+    }
+
+    const snapshot: MeasurementSnapshot = {
+      totalArea: Math.round(areaSqM * SQFT_PER_SQM),
+      totalPerimeter: Math.round(lengthM * FT_PER_METER),
+      shapes,
+      heights: formatHeightsForSnapshot(),
+    }
+
+    return {
+      snapshot,
+      metrics: { areaSqM, lengthM },
+    }
+  }
+
+  const markPendingCommit = () => {
+    pendingCommitRef.current = true
+  }
+
+  const simplifyFeature = (feature: any) => {
+    const turf = turfRef.current
+    if (!turf) return feature
+    const smoothing = useAppStore.getState().smoothing
+    const tol = Math.max(0, Math.min(10, smoothing)) * 0.00005
+    if (!tol) return feature
+    try {
+      return turf.simplify(feature, { tolerance: tol, highQuality: false })
+    } catch {
+      return feature
+    }
+  }
+
+  const persistCommittedGeometry = () => {
+    const draw = drawRef.current as any
+    if (!draw) return
+    pendingCommitRef.current = false
+    const all = draw.getAll()
+    const simplified = all.features.map((feature: any) => simplifyFeature(feature))
+    committedFeaturesRef.current = simplified
+    const { snapshot, metrics } = buildSnapshotFromFeatures(simplified)
+    committedMetricsRef.current = metrics
+    commitPricingMeasurements(snapshot)
+    setCommitTick((tick) => tick + 1)
+  }
+
+  const flushPendingCommit = () => {
+    if (!pendingCommitRef.current) return
+    persistCommittedGeometry()
+  }
 
   const ensure3DLayer = () => {
     const map = mapRef.current
@@ -139,6 +261,7 @@ export default function MapView() {
         ])
         if (cancelled) return
         ;(mapboxgl as any).accessToken = token
+        turfRef.current = turf
         // Compute style, supporting 'auto' (system theme)
         const mql = window.matchMedia('(prefers-color-scheme: dark)')
         const computeStyle = (styleId: string) => {
@@ -202,16 +325,25 @@ export default function MapView() {
                 try { area += (turf as any).area(g as any) } catch {}
               }
               if (g.geometry?.type === 'LineString' || g.geometry?.type === 'MultiLineString') {
-                try { length += (turf as any).length(g as any, { units: 'kilometers' }) * 1000 } catch {}
+                try { length += (turf as any).length(g as any, { units: 'meters' }) } catch {}
               }
             }
-            setMapMetrics({ area: area || undefined, length: length || undefined })
+            emitLiveSnapshot(area || 0, length || 0)
           }
           const computeRef: { current: () => void } = { current: compute }
 
-          const onCreate = () => compute()
-          const onUpdate = () => compute()
-          const onDelete = () => compute()
+          const onCreate = () => {
+            compute()
+            persistCommittedGeometry()
+          }
+          const onUpdate = () => {
+            compute()
+            markPendingCommit()
+          }
+          const onDelete = () => {
+            compute()
+            persistCommittedGeometry()
+          }
           map.on('draw.create', onCreate)
           map.on('draw.update', onUpdate)
           map.on('draw.delete', onDelete)
@@ -269,6 +401,7 @@ export default function MapView() {
                 const poly = { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [coords] } } as any
                 try { (drawRef.current as any)?.add(poly) } catch {}
                 computeRef.current()
+                persistCommittedGeometry()
               }
             }
             points = []
@@ -280,7 +413,10 @@ export default function MapView() {
             if (shouldFreehand) startFreehand(e)
           }
           const onMouseMove = (e: MapMouseEvent) => moveFreehand(e)
-          const onMouseUp = () => endFreehand()
+          const onMouseUp = () => {
+            endFreehand()
+            flushPendingCommit()
+          }
 
           // Touch event handlers for mobile/tablet
           const onTouchStart = (e: MapMouseEvent) => {
@@ -296,7 +432,10 @@ export default function MapView() {
               moveFreehand(e)
             }
           }
-          const onTouchEnd = () => endFreehand()
+          const onTouchEnd = () => {
+            endFreehand()
+            flushPendingCommit()
+          }
 
           map.on('mousedown', onMouseDown)
           map.on('mousemove', onMouseMove)
@@ -382,15 +521,23 @@ export default function MapView() {
     })()
 
     return () => { cancelled = true }
-  }, [setMeasurements, skipInit, enabled, initTick])
+  }, [skipInit, enabled, initTick, updateLivePricingMeasurements, commitPricingMeasurements])
 
   useEffect(() => {
+    const { areaSqM, lengthM } = committedMetricsRef.current
     setMeasurements({
-      area: mapMetrics.area,
-      length: mapMetrics.length,
+      area: areaSqM || undefined,
+      length: lengthM || undefined,
       heights: heightMeasurements.length ? heightMeasurements : undefined,
     })
-  }, [mapMetrics, heightMeasurements, setMeasurements])
+  }, [commitTick, heightMeasurements, setMeasurements])
+
+  useEffect(() => {
+    if (!commitPricingMeasurements) return
+    const { snapshot, metrics } = buildSnapshotFromFeatures(committedFeaturesRef.current)
+    committedMetricsRef.current = metrics
+    commitPricingMeasurements(snapshot)
+  }, [heightMeasurements, commitPricingMeasurements])
 
   useEffect(() => {
     const map = mapRef.current
@@ -489,11 +636,17 @@ export default function MapView() {
   // respond to clear requests
   useEffect(() => {
     const draw = drawRef.current
-    if (!draw) return
-    draw.deleteAll()
+    try { draw?.deleteAll() } catch {}
+    committedFeaturesRef.current = []
+    pendingCommitRef.current = false
+    committedMetricsRef.current = { areaSqM: 0, lengthM: 0 }
     setTextAnnotations([])
     setHeightMeasurements([])
-  }, [clearTick])
+    const emptySnapshot: MeasurementSnapshot = { totalArea: 0, totalPerimeter: 0, shapes: [], heights: [] }
+    updateLivePricingMeasurements(emptySnapshot)
+    commitPricingMeasurements(emptySnapshot)
+    setCommitTick((tick) => tick + 1)
+  }, [clearTick, updateLivePricingMeasurements, commitPricingMeasurements])
 
   // Handle commands (export/rectangle/circle)
   useEffect(() => {

@@ -8,7 +8,6 @@ import { integrationAPI } from '@/lib/integration'
 import PhotoMeasureModal from '@/components/PhotoMeasureModal'
 import BidBuilder from '@/components/BidBuilder'
 import PricingConfigModal from '@/components/PricingConfigModal'
-import type { MeasurementSnapshot } from '@/lib/pricing-types'
 
 export default function Toolbar() {
   const [showHelp, setShowHelp] = useState(false)
@@ -46,7 +45,6 @@ export default function Toolbar() {
   const currentBid = usePricingStore((s) => s.currentBid)
   const hydratePricing = usePricingStore((s) => s.hydrate)
   const pricingHydrated = usePricingStore((s) => s.hydrated)
-  const measurements = useAppStore((s) => s.measurements)
 
   // Hydrate pricing store on mount
   useEffect(() => {
@@ -98,30 +96,9 @@ export default function Toolbar() {
   }
 
   const openBidBuilder = () => {
-    // Convert current measurements to snapshot format
-    const area = measurements.area || 0
-    const length = measurements.length || 0
-    const heights = measurements.heights || []
-
-    // Convert from metric to imperial for the bid
-    const M2_TO_FT2 = 10.76391041671
-    const M_TO_FT = 3.280839895
-
-    const snapshot: MeasurementSnapshot = {
-      totalArea: Math.round(area * M2_TO_FT2),
-      totalPerimeter: Math.round(length * M_TO_FT),
-      shapes: [], // We don't have per-shape data easily accessible here
-      heights: heights.map((h) => ({
-        id: h.id,
-        value: Math.round(h.value * M_TO_FT * 10) / 10,
-        label: h.label,
-      })),
-    }
-
-    // Get context from integration API if embedded
     const ctx = integrationAPI ? integrationAPI.getContext() : {}
 
-    createNewBid(snapshot, {
+    createNewBid(undefined, {
       customerName: ctx.customerName,
       jobName: ctx.jobName,
       address: ctx.address,
