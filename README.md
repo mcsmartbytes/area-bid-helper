@@ -18,7 +18,8 @@ A professional area measurement and bidding tool for contractors. Measure proper
 - Draw measurement lines directly on photos
 - Export measurement summaries
 
-### Spatial Quote Engine (NEW)
+### Spatial Quote Engine
+- **Live pricing preview** - measurements stream to quote builder in real-time as you draw
 - **Production-aware pricing** - not just area × rate
 - Calculate labor hours based on production rates
 - Factor in crew size, hourly rates, and labor burden
@@ -26,6 +27,7 @@ A professional area measurement and bidding tool for contractors. Measure proper
 - Equipment costs (fixed + hourly)
 - **Profit preview** with adjustable margin slider
 - **Risk indicators**: Low margin, labor heavy, material sensitive
+- **Recalculate button** - lock in latest measurements anytime
 - Export to CSV and QuickBooks IIF
 
 ### Export Options
@@ -90,9 +92,12 @@ You'll need a [Mapbox access token](https://account.mapbox.com/access-tokens/). 
 4. **Add services**: Click "Add Service", select a service type
    - The quantity auto-fills from your measurements
    - Costs are calculated based on production rates
-5. **Adjust margin**: Use the slider (0-50%)
-6. **Review risk flags**: Warnings appear for low margin or cost-heavy jobs
-7. **Export**: CSV or QuickBooks IIF
+5. **Live updates**: Keep drawing while the quote is open
+   - Measurements update in real-time (preview mode)
+   - Click **"Recalculate"** to lock in the latest measurements
+6. **Adjust margin**: Use the slider (0-50%)
+7. **Review risk flags**: Warnings appear for low margin or cost-heavy jobs
+8. **Export**: CSV or QuickBooks IIF
 
 ### Configuring Pricing
 
