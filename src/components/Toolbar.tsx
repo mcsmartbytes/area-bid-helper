@@ -66,7 +66,8 @@ export default function Toolbar() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return
-    const media = window.matchMedia('(max-width: 900px)')
+    // Lower breakpoint from 900px to 768px for better tablet experience
+    const media = window.matchMedia('(max-width: 768px)')
     const update = () => setIsCompact(media.matches)
     update()
     media.addEventListener('change', update)
@@ -232,11 +233,13 @@ export default function Toolbar() {
           <div className="toolbar-content">{toolbarControls}</div>
         ) : (
           <div className="toolbar-mobile-shell">
-            <button className="btn" onClick={() => setMobileMenuOpen(true)} title="Open tools menu (M)">☰ Menu</button>
-            <span className="brand">Area Bid Pro</span>
-            <button className="btn" onClick={toggleUnits} title="Toggle units" suppressHydrationWarning>
-              Units: {mounted ? (unitSystem === 'metric' ? 'Metric' : 'Imperial') : '…'}
-            </button>
+            <button className="btn" onClick={() => setMobileMenuOpen(true)} title="Open tools menu (M)">☰</button>
+            <div className="segmented" role="group" aria-label="Quick modes">
+              <button className={'btn' + (mode === 'polygon' ? ' active' : '')} onClick={() => setMode('polygon')} title="Polygon">⬠</button>
+              <button className={'btn' + (mode === 'line' ? ' active' : '')} onClick={() => setMode('line')} title="Length">／</button>
+              <button className={'btn' + (mode === 'pan' ? ' active' : '')} onClick={() => setMode('pan')} title="Pan">🖱</button>
+            </div>
+            <button className="btn btn-build-quote" onClick={openBidBuilder} title="Build Quote">💰</button>
           </div>
         )}
       </div>
