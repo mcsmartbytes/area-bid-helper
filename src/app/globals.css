@@ -90,10 +90,17 @@ body {
 }
 .toolbar-mobile-menu {
   width: min(560px, 94vw);
-  max-height: 90vh;
+  max-height: 85vh;
   display: flex;
   flex-direction: column;
   gap: 12px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.toolbar-mobile-menu .toolbar-content {
+  overflow-y: auto;
+  flex: 1;
+  padding-bottom: 16px;
 }
 .toolbar-content.toolbar-stack {
   flex-direction: column;
