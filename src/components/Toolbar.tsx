@@ -9,6 +9,20 @@ import PhotoMeasureModal from '@/components/PhotoMeasureModal'
 import BidBuilder from '@/components/BidBuilder'
 import PricingConfigModal from '@/components/PricingConfigModal'
 
+// Collapsible group component for mobile menu
+function MenuGroup({ title, icon, children, defaultOpen = false }: { title: string; icon: string; children: React.ReactNode; defaultOpen?: boolean }) {
+  const [isOpen, setIsOpen] = useState(defaultOpen)
+  return (
+    <div className="menu-group">
+      <button className="menu-group-header" onClick={() => setIsOpen(!isOpen)}>
+        <span>{icon} {title}</span>
+        <span>{isOpen ? '▼' : '▶'}</span>
+      </button>
+      {isOpen && <div className="menu-group-content">{children}</div>}
+    </div>
+  )
+}
+
 export default function Toolbar() {
   const [showHelp, setShowHelp] = useState(false)
   const mode = useAppStore((s) => s.mode)
@@ -246,10 +260,85 @@ export default function Toolbar() {
       {isCompact && mobileMenuOpen && (
         <div className="modal-overlay" onClick={closeMobileMenu}>
           <div className="glass modal toolbar-mobile-menu" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
-            <div className="toolbar-content toolbar-stack">
-              {toolbarControls}
+            <div className="mobile-menu-scroll">
+              <MenuGroup title="Drawing Tools" icon="✎" defaultOpen={true}>
+                <button className={'btn' + (mode === 'freehand' ? ' active' : '')} onClick={() => { setMode('freehand'); closeMobileMenu() }}>✎ Freehand</button>
+                <button className={'btn' + (mode === 'polygon' ? ' active' : '')} onClick={() => { setMode('polygon'); closeMobileMenu() }}>⬠ Polygon</button>
+                <button className={'btn' + (mode === 'line' ? ' active' : '')} onClick={() => { setMode('line'); closeMobileMenu() }}>／ Length</button>
+                <button className={'btn' + (mode === 'text' ? ' active' : '')} onClick={() => { setMode('text'); closeMobileMenu() }}>T Text</button>
+                <button className={'btn' + (mode === 'height' ? ' active' : '')} onClick={() => { setMode('height'); closeMobileMenu() }}>↕ Height</button>
+                <button className={'btn' + (mode === 'pan' ? ' active' : '')} onClick={() => { setMode('pan'); closeMobileMenu() }}>🖱 Pan</button>
+                <button className="btn" onClick={() => { requestCommand('draw:rectangle'); closeMobileMenu() }}>▭ Rectangle</button>
+                <button className="btn" onClick={() => { requestCommand('draw:circle'); closeMobileMenu() }}>◯ Circle</button>
+              </MenuGroup>
+
+              <MenuGroup title="Measure & Quote" icon="💰">
+                <button className="btn btn-photo-measure" onClick={openPhotoMeasure}>📐 Photo Measure</button>
+                <button className="btn btn-build-quote" onClick={openBidBuilder}>💰 Build Quote</button>
+                <button className="btn" onClick={openPricingConfig}>⚙ Pricing Config</button>
+              </MenuGroup>
+
+              <MenuGroup title="View & Map" icon="🗺">
+                <button className="btn" onClick={() => { requestCommand('view:reset'); closeMobileMenu() }}>⟲ Reset View</button>
+                <button className={'btn' + (enable3D ? ' active' : '')} onClick={() => { setEnable3D(!enable3D); closeMobileMenu() }}>⬒ 3D Buildings</button>
+                <button className="btn" onClick={() => { requestCommand('view:streetview'); closeMobileMenu() }}>📷 Street View</button>
+                <button className="btn" onClick={openMapSettingsModal}>🗺 Map Settings</button>
+                <button className="btn" onClick={() => { requestClear(); closeMobileMenu() }}>✕ Clear All</button>
+              </MenuGroup>
+
+              <MenuGroup title="Settings" icon="⚙">
+                <button className="btn" onClick={() => { toggleUnits(); closeMobileMenu() }} suppressHydrationWarning>
+                  Units: {mounted ? (unitSystem === 'metric' ? 'Metric' : 'Imperial') : '…'}
+                </button>
+                <div className="menu-row">
+                  <span>Style:</span>
+                  {mounted && (
+                    <select
+                      value={styleId}
+                      onChange={(e) => { setStyleId(e.target.value as any); closeMobileMenu() }}
+                      className="menu-select"
+                    >
+                      <option value="auto">Auto</option>
+                      <option value="mapbox://styles/mapbox/streets-v12">Streets</option>
+                      <option value="mapbox://styles/mapbox/outdoors-v12">Outdoors</option>
+                      <option value="mapbox://styles/mapbox/satellite-streets-v12">Satellite</option>
+                      <option value="mapbox://styles/mapbox/light-v11">Light</option>
+                      <option value="mapbox://styles/mapbox/dark-v11">Dark</option>
+                    </select>
+                  )}
+                </div>
+                <div className="menu-row">
+                  <span>Smoothing:</span>
+                  {mounted && (
+                    <input
+                      type="range"
+                      min={0}
+                      max={10}
+                      step={1}
+                      value={smoothing}
+                      onChange={(e) => setSmoothing(Number(e.target.value))}
+                      className="menu-range"
+                    />
+                  )}
+                </div>
+              </MenuGroup>
+
+              <MenuGroup title="Export & Import" icon="📤">
+                {isEmbedded && <button className="btn" onClick={() => { requestCommand('export:quote'); closeMobileMenu() }}>📤 Send to Quote</button>}
+                <button className="btn" onClick={() => { requestCommand('export:png'); closeMobileMenu() }}>🖼 PNG Snapshot</button>
+                <button className="btn" onClick={() => { requestCommand('export:json'); closeMobileMenu() }}>📄 GeoJSON</button>
+                <button className="btn" onClick={() => { requestCommand('export:csv'); closeMobileMenu() }}>📊 CSV Report</button>
+                <button className="btn" onClick={() => { requestCommand('export:iif'); closeMobileMenu() }}>📒 QuickBooks IIF</button>
+                <button className="btn" onClick={() => fileInputRef.current?.click()}>⤒ Import GeoJSON</button>
+              </MenuGroup>
+
+              <MenuGroup title="Other" icon="📝">
+                <button className="btn" onClick={openNotesModal}>📝 Site Notes</button>
+                <button className="btn" onClick={openHelpModal}>❓ Help</button>
+              </MenuGroup>
+
               {isEmbedded && (
-                <div className="btn" style={{ justifyContent: 'center', textAlign: 'center' }}>
+                <div className="menu-context">
                   {context.customerName ? `${context.customerName}${context.jobName ? ` – ${context.jobName}` : ''}` : 'Embedded session'}
                 </div>
               )}
