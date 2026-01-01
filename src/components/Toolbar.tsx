@@ -258,9 +258,16 @@ export default function Toolbar() {
         )}
       </div>
       {isCompact && mobileMenuOpen && (
-        <div className="modal-overlay" onClick={closeMobileMenu}>
-          <div className="glass modal toolbar-mobile-menu" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
-            <div className="mobile-menu-scroll">
+        <>
+          {/* Invisible tap target to close menu when tapping on map */}
+          <div
+            style={{ position: 'fixed', inset: 0, zIndex: 999 }}
+            onClick={closeMobileMenu}
+            aria-hidden="true"
+          />
+          <div className="modal-overlay" onClick={closeMobileMenu}>
+            <div className="glass modal toolbar-mobile-menu" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+              <div className="mobile-menu-scroll">
               <MenuGroup title="Drawing Tools" icon="✎" defaultOpen={true}>
                 <button className={'btn' + (mode === 'freehand' ? ' active' : '')} onClick={() => { setMode('freehand'); closeMobileMenu() }}>✎ Freehand</button>
                 <button className={'btn' + (mode === 'polygon' ? ' active' : '')} onClick={() => { setMode('polygon'); closeMobileMenu() }}>⬠ Polygon</button>
@@ -348,6 +355,7 @@ export default function Toolbar() {
             </div>
           </div>
         </div>
+        </>
       )}
       {showHelp && (
         <div className="modal-overlay" onClick={() => setShowHelp(false)}>

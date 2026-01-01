@@ -268,6 +268,24 @@ body {
 .modal-content { font-size: 13px; color: var(--muted); line-height: 1.5; }
 .modal-actions { margin-top: 12px; display: flex; justify-content: flex-end; }
 
+/* Mobile menu slide-in panel - doesn't block map */
+.modal-overlay:has(.toolbar-mobile-menu) {
+  background: transparent;
+  pointer-events: none;
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+.modal-overlay:has(.toolbar-mobile-menu) .toolbar-mobile-menu {
+  pointer-events: auto;
+  margin: 70px 0 0 8px;
+  max-height: calc(100vh - 90px);
+  animation: slideIn 0.2s ease-out;
+}
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(-20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
 /* Loading spinner animation */
 @keyframes spin {
   from { transform: rotate(0deg); }
