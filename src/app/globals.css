@@ -217,6 +217,20 @@ body {
 .btn-quiet { background: transparent; border-color: transparent; }
 .btn-quiet:hover { background: rgba(255,255,255,0.06); border-color: var(--glass-border); }
 
+/* Compact buttons for dense toolbar */
+.btn-compact {
+  padding: 6px 8px;
+  font-size: 12px;
+  min-height: 32px;
+  min-width: 32px;
+}
+.btn-compact.btn-dropdown {
+  padding: 6px 6px 6px 10px;
+}
+.btn-compact.btn-dropdown select {
+  font-size: 10px;
+}
+
 /* Segmented control look for grouped buttons */
 .segmented { display: inline-flex; gap: 0; border-radius: 12px; overflow: hidden; border: 1px solid var(--glass-border); }
 .segmented > .btn { border-radius: 0; border: 0; border-right: 1px solid var(--glass-border); }

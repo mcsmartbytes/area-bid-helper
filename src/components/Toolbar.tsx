@@ -130,66 +130,20 @@ export default function Toolbar() {
 
   const toolbarControls = (
     <>
+      {/* Drawing Tools - Compact segmented */}
       <div className="segmented" role="group" aria-label="Drawing modes">
-        <button className={'btn' + (mode === 'freehand' ? ' active' : '')} onClick={() => setMode('freehand')} title="Freehand (F)">✎ Freehand</button>
-        <button className={'btn' + (mode === 'polygon' ? ' active' : '')} onClick={() => setMode('polygon')} title="Polygon (A)">⬠ Polygon</button>
-        <button className={'btn' + (mode === 'line' ? ' active' : '')} onClick={() => setMode('line')} title="Length (L)">／ Length</button>
-        <button className={'btn' + (mode === 'text' ? ' active' : '')} onClick={() => setMode('text')} title="Text Label (T)">T Text</button>
-        <button className={'btn' + (mode === 'height' ? ' active' : '')} onClick={() => setMode('height')} title="Height (H)">↕ Height</button>
-        <button className={'btn' + (mode === 'pan' ? ' active' : '')} onClick={() => setMode('pan')} title="Pan/Select (V)">🖱 Pan</button>
+        <button className={'btn btn-compact' + (mode === 'freehand' ? ' active' : '')} onClick={() => setMode('freehand')} title="Freehand (F)">✎</button>
+        <button className={'btn btn-compact' + (mode === 'polygon' ? ' active' : '')} onClick={() => setMode('polygon')} title="Polygon (A)">⬠</button>
+        <button className={'btn btn-compact' + (mode === 'line' ? ' active' : '')} onClick={() => setMode('line')} title="Length (L)">／</button>
+        <button className={'btn btn-compact' + (mode === 'text' ? ' active' : '')} onClick={() => setMode('text')} title="Text (T)">T</button>
+        <button className={'btn btn-compact' + (mode === 'height' ? ' active' : '')} onClick={() => setMode('height')} title="Height (H)">↕</button>
+        <button className={'btn btn-compact' + (mode === 'pan' ? ' active' : '')} onClick={() => setMode('pan')} title="Pan (V)">🖱</button>
       </div>
-      <button className="btn" onClick={() => requestCommand('draw:rectangle')} title="Rectangle (R)">▭ Rectangle</button>
-      <button className="btn" onClick={() => requestCommand('draw:circle')} title="Circle (O)">◯ Circle</button>
-      <button className="btn" onClick={() => requestCommand('view:reset')} title="Reset view">⟲ Reset</button>
-      <button className={'btn' + (enable3D ? ' active' : '')} onClick={() => setEnable3D(!enable3D)} title="Toggle 3D buildings">⬒ 3D</button>
-      <button className="btn" onClick={() => requestCommand('view:streetview')} title="Street View helper">📷 Street</button>
-      <button className="btn" onClick={requestClear} title="Clear all (C)">✕ Clear</button>
-      <button className="btn" onClick={openMapSettingsModal} title="Map settings">🗺 Map</button>
-      <button className="btn btn-photo-measure" onClick={openPhotoMeasure} title="Photo Measure Pro - measure on photos">📐 Photo Measure</button>
-      <button className="btn btn-build-quote" onClick={openBidBuilder} title="Build Quote - production-aware pricing (B)">💰 Build Quote</button>
-      <button className="btn" onClick={openPricingConfig} title="Configure pricing rates">⚙ Pricing</button>
-      <button className="btn" onClick={toggleUnits} title="Toggle units" suppressHydrationWarning>
-        Units: {mounted ? (unitSystem === 'metric' ? 'Metric' : 'Imperial') : '…'}
-      </button>
-      <span className="btn btn-dropdown" title="Map style">
-        <label htmlFor="style-select" style={{ cursor: 'pointer' }}>Style:</label>
-        {mounted && (
-          <select
-            id="style-select"
-            name="map-style"
-            value={styleId}
-            onChange={(e) => setStyleId(e.target.value as any)}
-            style={{ background: 'transparent', color: 'inherit', border: 'none', outline: 'none', cursor: 'pointer' }}
-          >
-            <option value="auto">Auto</option>
-            <option value="mapbox://styles/mapbox/streets-v12">Streets</option>
-            <option value="mapbox://styles/mapbox/outdoors-v12">Outdoors</option>
-            <option value="mapbox://styles/mapbox/satellite-streets-v12">Satellite</option>
-            <option value="mapbox://styles/mapbox/light-v11">Light</option>
-            <option value="mapbox://styles/mapbox/dark-v11">Dark</option>
-          </select>
-        )}
-      </span>
-      <span className="btn btn-slider" title="Freehand smoothing">
-        <label htmlFor="smoothing-range" style={{ cursor: 'pointer' }}>Smooth:</label>
-        {mounted && (
-          <input
-            id="smoothing-range"
-            name="smoothing"
-            type="range"
-            min={0}
-            max={10}
-            step={1}
-            value={smoothing}
-            onChange={(e) => setSmoothing(Number(e.target.value))}
-          />
-        )}
-      </span>
-      <span className="btn btn-dropdown" title="Export">
-        <label htmlFor="export-select" style={{ cursor: 'pointer' }}>Export</label>
+
+      {/* Shapes dropdown */}
+      <span className="btn btn-dropdown btn-compact" title="Shapes">
+        <label style={{ cursor: 'pointer' }}>▭ Shapes</label>
         <select
-          id="export-select"
-          name="export-format"
           defaultValue=""
           onChange={(e) => {
             const v = e.target.value
@@ -197,23 +151,119 @@ export default function Toolbar() {
             requestCommand(v)
             e.currentTarget.value = ''
           }}
-          style={{ background: 'transparent', color: 'inherit', border: 'none', outline: 'none', cursor: 'pointer' }}
+          style={{ background: 'transparent', color: 'inherit', border: 'none', outline: 'none', cursor: 'pointer', width: 20 }}
         >
-          <option value="">Choose…</option>
-          {isEmbedded && <option value="export:quote">📤 Send to Quote</option>}
-          <option value="export:png">PNG Snapshot (P)</option>
-          <option value="export:json">GeoJSON (J)</option>
-          <option value="export:csv">CSV Report (K)</option>
-          <option value="export:iif">QuickBooks IIF (Q)</option>
+          <option value="">▼</option>
+          <option value="draw:rectangle">▭ Rectangle (R)</option>
+          <option value="draw:circle">◯ Circle (O)</option>
         </select>
       </span>
-      <button
-        className="btn"
-        title="Import GeoJSON"
-        onClick={() => fileInputRef.current?.click()}
-      >
-        ⤒ Import
-      </button>
+
+      {/* View dropdown */}
+      <span className="btn btn-dropdown btn-compact" title="View options">
+        <label style={{ cursor: 'pointer' }}>👁 View</label>
+        <select
+          defaultValue=""
+          onChange={(e) => {
+            const v = e.target.value
+            if (!v) return
+            if (v === 'toggle3d') {
+              setEnable3D(!enable3D)
+            } else {
+              requestCommand(v)
+            }
+            e.currentTarget.value = ''
+          }}
+          style={{ background: 'transparent', color: 'inherit', border: 'none', outline: 'none', cursor: 'pointer', width: 20 }}
+        >
+          <option value="">▼</option>
+          <option value="view:reset">⟲ Reset View</option>
+          <option value="toggle3d">{enable3D ? '☑' : '☐'} 3D Buildings</option>
+          <option value="view:streetview">📷 Street View</option>
+        </select>
+      </span>
+
+      {/* Actions dropdown */}
+      <span className="btn btn-dropdown btn-compact" title="Actions">
+        <label style={{ cursor: 'pointer' }}>⚡ Actions</label>
+        <select
+          defaultValue=""
+          onChange={(e) => {
+            const v = e.target.value
+            if (!v) return
+            if (v === 'clear') requestClear()
+            else if (v === 'map') openMapSettingsModal()
+            else if (v === 'notes') openNotesModal()
+            else if (v === 'help') openHelpModal()
+            e.currentTarget.value = ''
+          }}
+          style={{ background: 'transparent', color: 'inherit', border: 'none', outline: 'none', cursor: 'pointer', width: 20 }}
+        >
+          <option value="">▼</option>
+          <option value="clear">✕ Clear All (C)</option>
+          <option value="map">🗺 Map Settings</option>
+          <option value="notes">📝 Site Notes</option>
+          <option value="help">❓ Help</option>
+        </select>
+      </span>
+
+      {/* Main action buttons - keep visible */}
+      <button className="btn btn-compact btn-photo-measure" onClick={openPhotoMeasure} title="Photo Measure">📐 Photo</button>
+      <button className="btn btn-compact btn-build-quote" onClick={openBidBuilder} title="Build Quote (B)">💰 Quote</button>
+      <button className="btn btn-compact" onClick={openPricingConfig} title="Pricing">⚙</button>
+
+      {/* Settings dropdown */}
+      <span className="btn btn-dropdown btn-compact" title="Settings">
+        <label style={{ cursor: 'pointer' }}>⚙ Settings</label>
+        <select
+          defaultValue=""
+          onChange={(e) => {
+            const v = e.target.value
+            if (!v) return
+            if (v === 'units') toggleUnits()
+            else if (v.startsWith('style:')) setStyleId(v.replace('style:', '') as any)
+            e.currentTarget.value = ''
+          }}
+          style={{ background: 'transparent', color: 'inherit', border: 'none', outline: 'none', cursor: 'pointer', width: 20 }}
+        >
+          <option value="">▼</option>
+          <option value="units">📏 Units: {mounted ? (unitSystem === 'metric' ? 'Metric' : 'Imperial') : '…'}</option>
+          <option disabled>── Map Style ──</option>
+          <option value="style:auto">Auto</option>
+          <option value="style:mapbox://styles/mapbox/streets-v12">Streets</option>
+          <option value="style:mapbox://styles/mapbox/satellite-streets-v12">Satellite</option>
+          <option value="style:mapbox://styles/mapbox/light-v11">Light</option>
+          <option value="style:mapbox://styles/mapbox/dark-v11">Dark</option>
+        </select>
+      </span>
+
+      {/* Export/Import dropdown */}
+      <span className="btn btn-dropdown btn-compact" title="Export/Import">
+        <label style={{ cursor: 'pointer' }}>📤 Export</label>
+        <select
+          defaultValue=""
+          onChange={(e) => {
+            const v = e.target.value
+            if (!v) return
+            if (v === 'import') {
+              fileInputRef.current?.click()
+            } else {
+              requestCommand(v)
+            }
+            e.currentTarget.value = ''
+          }}
+          style={{ background: 'transparent', color: 'inherit', border: 'none', outline: 'none', cursor: 'pointer', width: 20 }}
+        >
+          <option value="">▼</option>
+          {isEmbedded && <option value="export:quote">📤 Send to Quote</option>}
+          <option value="export:png">🖼 PNG Snapshot</option>
+          <option value="export:json">📄 GeoJSON</option>
+          <option value="export:csv">📊 CSV Report</option>
+          <option value="export:iif">📒 QuickBooks IIF</option>
+          <option disabled>──────────</option>
+          <option value="import">⤒ Import GeoJSON</option>
+        </select>
+      </span>
       <input
         ref={fileInputRef}
         type="file"
@@ -232,10 +282,9 @@ export default function Toolbar() {
           if (input) input.value = ''
         }}
       />
-      <button className="btn" onClick={openHelpModal} title="Help">❓ Help</button>
-      <button className="btn" onClick={openNotesModal} title="Site Notes">📝 Notes</button>
-      <span className="btn" style={{ cursor: 'default' }}>
-        <span className="brand">Area Bid Pro</span>
+
+      <span className="btn btn-compact brand-btn" style={{ cursor: 'default' }}>
+        <span className="brand">Area Bid</span>
       </span>
     </>
   )
