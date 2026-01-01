@@ -1,5 +1,6 @@
 "use client"
 import { useAppStore } from '@/lib/store'
+import { usePricingStore } from '@/lib/pricing-store'
 
 interface QuoteToolbarProps {
   onSettings?: () => void
@@ -8,6 +9,8 @@ interface QuoteToolbarProps {
 }
 
 export default function QuoteToolbar({ onSettings, onSendQuote, onSaveDraft }: QuoteToolbarProps) {
+  const liveMeasurements = usePricingStore((s) => s.liveMeasurements)
+  const hasDrawings = liveMeasurements && (liveMeasurements.totalArea > 0 || liveMeasurements.totalPerimeter > 0)
   const requestClear = useAppStore((s) => s.requestClear)
   const requestCommand = useAppStore((s) => s.requestCommand)
 
@@ -67,6 +70,8 @@ export default function QuoteToolbar({ onSettings, onSendQuote, onSaveDraft }: Q
         <button
           className="btn btn-primary btn-send-quote"
           onClick={onSendQuote}
+          disabled={!hasDrawings}
+          title={hasDrawings ? 'Send quote to customer' : 'Draw on the map first'}
         >
           Send Quote
         </button>

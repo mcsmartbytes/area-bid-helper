@@ -19,9 +19,11 @@ export default function ServicesPanel({ onServiceSelect }: ServicesPanelProps) {
   const pricingConfigs = usePricingStore((s) => s.pricingConfigs)
   const activePricingConfigId = usePricingStore((s) => s.activePricingConfigId)
   const hydrated = usePricingStore((s) => s.hydrated)
+  const liveMeasurements = usePricingStore((s) => s.liveMeasurements)
   const setMode = useAppStore((s) => s.setMode)
 
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null)
+  const hasDrawings = liveMeasurements && (liveMeasurements.totalArea > 0 || liveMeasurements.totalPerimeter > 0)
 
   const activeConfig = pricingConfigs.find(c => c.id === activePricingConfigId)
   const services = activeConfig?.serviceTypes || []
@@ -62,9 +64,11 @@ export default function ServicesPanel({ onServiceSelect }: ServicesPanelProps) {
         <span className="services-panel-step">1</span>
         <span className="services-panel-title">Select Service</span>
       </div>
-      <div className="services-panel-hint">
-        Select a service, then draw on the map
-      </div>
+      {!hasDrawings && (
+        <div className="services-panel-hint">
+          Select a service, then draw on the map
+        </div>
+      )}
 
       <div className="services-list">
         {areaServices.length > 0 && (

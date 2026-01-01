@@ -4,6 +4,7 @@ import MapView from '@/components/MapView'
 import QuoteToolbar from '@/components/QuoteToolbar'
 import ServicesPanel from '@/components/ServicesPanel'
 import QuoteSummary from '@/components/QuoteSummary'
+import CursorTooltip from '@/components/CursorTooltip'
 import PrefHydrator from '@/components/PrefHydrator'
 import { useMounted } from '@/lib/useMounted'
 import ErrorBoundary from '@/components/ErrorBoundary'
@@ -111,6 +112,7 @@ export default function Page() {
         <ErrorBoundary label="MapView">
           <MapView />
         </ErrorBoundary>
+        <CursorTooltip />
       </div>
 
       {/* Right Panel - Quote Summary */}

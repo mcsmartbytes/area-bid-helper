@@ -871,6 +871,116 @@ select option {
   box-shadow: 0 4px 20px rgba(34, 197, 94, 0.3);
 }
 
+/* Cursor Tooltip - Live price while drawing */
+.cursor-tooltip {
+  position: fixed;
+  z-index: 1000;
+  pointer-events: none;
+  background: rgba(17, 25, 40, 0.95);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(122, 162, 255, 0.5);
+  border-radius: 8px;
+  padding: 8px 12px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+  animation: tooltip-pop 0.15s ease-out;
+}
+
+@keyframes tooltip-pop {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.cursor-tooltip-area {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 2px;
+}
+
+.cursor-tooltip-price {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+/* Animated hero amount */
+.quote-hero-amount {
+  transition: transform 0.2s ease-out;
+}
+
+.quote-hero-amount.pulse {
+  animation: hero-pulse 0.3s ease-out;
+}
+
+@keyframes hero-pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+/* Disabled button state */
+.btn-send-quote:disabled,
+.btn-send-quote.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: linear-gradient(135deg, #4a5568, #2d3748);
+  border-color: #4a5568;
+}
+
+.btn-send-quote:disabled:hover {
+  box-shadow: none;
+  background: linear-gradient(135deg, #4a5568, #2d3748);
+}
+
+/* Smart Warnings - Sprint C */
+.quote-smart-warnings {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.quote-warning {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.quote-warning-icon {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-weight: 700;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.quote-warning-info {
+  background: rgba(122, 162, 255, 0.15);
+  border: 1px solid rgba(122, 162, 255, 0.3);
+  color: var(--accent);
+}
+
+.quote-warning-info .quote-warning-icon {
+  background: rgba(122, 162, 255, 0.3);
+}
+
+.quote-warning-caution {
+  background: rgba(251, 191, 36, 0.15);
+  border: 1px solid rgba(251, 191, 36, 0.4);
+  color: #fbbf24;
+}
+
+.quote-warning-caution .quote-warning-icon {
+  background: rgba(251, 191, 36, 0.3);
+}
+
 /* ===== END SALES-FOCUSED UX ===== */
 
 /* Quote Toolbar */
