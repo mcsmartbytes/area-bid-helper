@@ -93,7 +93,8 @@ export default function Page() {
         <ErrorBoundary label="QuoteToolbar">
           <QuoteToolbar
             onSettings={() => setShowPricingConfig(true)}
-            onHelp={() => setShowHelp(true)}
+            onSendQuote={handleSendQuote}
+            onSaveDraft={() => { /* TODO: implement save draft */ }}
           />
         </ErrorBoundary>
       </div>

@@ -1,4 +1,5 @@
 "use client"
+import { useState } from 'react'
 import { usePricingStore } from '@/lib/pricing-store'
 import { useAppStore } from '@/lib/store'
 import type { ServiceType, PricingConfig } from '@/lib/pricing-types'
@@ -20,21 +21,26 @@ export default function ServicesPanel({ onServiceSelect }: ServicesPanelProps) {
   const hydrated = usePricingStore((s) => s.hydrated)
   const setMode = useAppStore((s) => s.setMode)
 
+  const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null)
+
   const activeConfig = pricingConfigs.find(c => c.id === activePricingConfigId)
   const services = activeConfig?.serviceTypes || []
 
   // Group services by pricing model for better organization
   const areaServices = services.filter(s => s.pricingModel === 'area')
   const linearServices = services.filter(s => s.pricingModel === 'linear')
-  const otherServices = services.filter(s => !['area', 'linear'].includes(s.pricingModel))
 
   const handleServiceClick = (service: ServiceType) => {
-    // Set appropriate drawing mode based on service type
+    setSelectedServiceId(service.id)
+
+    // AUTO-ARM: Service selection = drawing intent
+    // Immediately set the appropriate drawing mode
     if (service.pricingModel === 'area') {
-      setMode('freehand')
+      setMode('freehand') // or 'polygon' - freehand is more intuitive
     } else if (service.pricingModel === 'linear') {
       setMode('line')
     }
+
     onServiceSelect?.(service)
   }
 
@@ -42,7 +48,8 @@ export default function ServicesPanel({ onServiceSelect }: ServicesPanelProps) {
     return (
       <div className="services-panel">
         <div className="services-panel-header">
-          <span className="services-panel-title">Services</span>
+          <span className="services-panel-step">1</span>
+          <span className="services-panel-title">Select Service</span>
         </div>
         <div className="services-loading">Loading...</div>
       </div>
@@ -52,7 +59,11 @@ export default function ServicesPanel({ onServiceSelect }: ServicesPanelProps) {
   return (
     <div className="services-panel">
       <div className="services-panel-header">
-        <span className="services-panel-title">Services</span>
+        <span className="services-panel-step">1</span>
+        <span className="services-panel-title">Select Service</span>
+      </div>
+      <div className="services-panel-hint">
+        Select a service, then draw on the map
       </div>
 
       <div className="services-list">
@@ -61,20 +72,21 @@ export default function ServicesPanel({ onServiceSelect }: ServicesPanelProps) {
             <div className="services-group-label">Area Services</div>
             {areaServices.map(service => {
               const rate = activeConfig ? calculateEffectiveRate(service, activeConfig) : 0
+              const isSelected = selectedServiceId === service.id
               return (
                 <button
                   key={service.id}
-                  className="service-button"
+                  className={`service-button ${isSelected ? 'service-button-selected' : ''}`}
                   onClick={() => handleServiceClick(service)}
-                  style={{ '--service-color': '#7aa2ff' } as React.CSSProperties}
                 >
-                  <span className="service-color-dot" />
+                  <span className="service-color-dot service-color-area" />
                   <div className="service-button-info">
                     <span className="service-button-name">{service.name}</span>
                     <span className="service-button-rate">
                       ${rate.toFixed(2)}/sq ft
                     </span>
                   </div>
+                  {isSelected && <span className="service-check">✓</span>}
                 </button>
               )
             })}
@@ -86,46 +98,21 @@ export default function ServicesPanel({ onServiceSelect }: ServicesPanelProps) {
             <div className="services-group-label">Linear Services</div>
             {linearServices.map(service => {
               const rate = activeConfig ? calculateEffectiveRate(service, activeConfig) : 0
+              const isSelected = selectedServiceId === service.id
               return (
                 <button
                   key={service.id}
-                  className="service-button"
+                  className={`service-button ${isSelected ? 'service-button-selected' : ''}`}
                   onClick={() => handleServiceClick(service)}
-                  style={{ '--service-color': '#94f0ff' } as React.CSSProperties}
                 >
-                  <span className="service-color-dot" />
+                  <span className="service-color-dot service-color-linear" />
                   <div className="service-button-info">
                     <span className="service-button-name">{service.name}</span>
                     <span className="service-button-rate">
                       ${rate.toFixed(2)}/ft
                     </span>
                   </div>
-                </button>
-              )
-            })}
-          </div>
-        )}
-
-        {otherServices.length > 0 && (
-          <div className="services-group">
-            <div className="services-group-label">Other Services</div>
-            {otherServices.map(service => {
-              const rate = activeConfig ? calculateEffectiveRate(service, activeConfig) : 0
-              const unitLabel = service.pricingModel === 'hourly' ? '/hr' : '/ea'
-              return (
-                <button
-                  key={service.id}
-                  className="service-button"
-                  onClick={() => handleServiceClick(service)}
-                  style={{ '--service-color': '#ff9f7a' } as React.CSSProperties}
-                >
-                  <span className="service-color-dot" />
-                  <div className="service-button-info">
-                    <span className="service-button-name">{service.name}</span>
-                    <span className="service-button-rate">
-                      ${rate.toFixed(2)}{unitLabel}
-                    </span>
-                  </div>
+                  {isSelected && <span className="service-check">✓</span>}
                 </button>
               )
             })}

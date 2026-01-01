@@ -1,7 +1,7 @@
 "use client"
 import { usePricingStore } from '@/lib/pricing-store'
 import { useAppStore } from '@/lib/store'
-import { formatArea, formatLength } from '@/lib/format'
+import { formatArea } from '@/lib/format'
 
 interface QuoteSummaryProps {
   onBuildQuote?: () => void
@@ -46,118 +46,102 @@ export default function QuoteSummary({ onBuildQuote, onSendQuote }: QuoteSummary
     }
   }
 
+  // Format large number with commas
+  const formatPrice = (amount: number) => {
+    return amount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+  }
+
   if (!hydrated) {
     return (
       <div className="quote-summary">
         <div className="quote-summary-header">
-          <span className="quote-summary-title">Quote Summary</span>
+          <span className="quote-summary-step">2</span>
+          <span className="quote-summary-title">Your Quote</span>
         </div>
         <div className="quote-loading">Loading...</div>
       </div>
     )
   }
 
+  const totalAmount = displayBid ? displayBid.total : quickEstimate
+  const hasDrawings = measurements && (measurements.totalArea > 0 || measurements.totalPerimeter > 0)
+
   return (
     <div className="quote-summary">
       <div className="quote-summary-header">
-        <span className="quote-summary-title">Quote Summary</span>
+        <span className="quote-summary-step">2</span>
+        <span className="quote-summary-title">Your Quote</span>
       </div>
 
-      {/* Measurements Section */}
-      <div className="quote-measurements">
-        <div className="quote-measurement-row">
-          <span className="quote-measurement-label">Total Area</span>
-          <span className="quote-measurement-value">
-            {measurements?.totalArea
-              ? formatArea(measurements.totalArea / 10.764, unitSystem)
-              : '0 sq ft'}
-          </span>
+      {/* BIG ESTIMATED TOTAL - The hero number */}
+      <div className="quote-hero">
+        <div className="quote-hero-label">ESTIMATED TOTAL</div>
+        <div className="quote-hero-amount">
+          ${formatPrice(totalAmount)}
         </div>
-        <div className="quote-measurement-row">
-          <span className="quote-measurement-label">Total Perimeter</span>
-          <span className="quote-measurement-value">
-            {measurements?.totalPerimeter
-              ? formatLength(measurements.totalPerimeter / 3.281, unitSystem)
-              : '0 ft'}
-          </span>
-        </div>
-        {measurements?.shapes && measurements.shapes.length > 0 && (
-          <div className="quote-measurement-row">
-            <span className="quote-measurement-label">Shapes</span>
-            <span className="quote-measurement-value">{measurements.shapes.length}</span>
-          </div>
+        {!hasDrawings && (
+          <div className="quote-hero-hint">Draw on the map to see pricing</div>
         )}
       </div>
 
-      {/* Line Items (if bid exists) */}
+      {/* Line Items - only show if we have a bid with items */}
       {displayBid && displayBid.lineItems.length > 0 && (
         <div className="quote-line-items">
-          <div className="quote-section-label">Line Items</div>
           {displayBid.lineItems.map(item => (
             <div key={item.id} className="quote-line-item">
               <div className="quote-line-item-name">{item.serviceName}</div>
-              <div className="quote-line-item-detail">
-                {item.quantity.toLocaleString()} {item.unit} @ ${(item.subtotal / item.quantity).toFixed(2)}
+              <div className="quote-line-item-calc">
+                {item.quantity.toLocaleString()} {item.unit} × ${(item.subtotal / item.quantity).toFixed(2)}
               </div>
-              <div className="quote-line-item-price">${item.subtotal.toFixed(2)}</div>
+              <div className="quote-line-item-price">${item.subtotal.toFixed(0)}</div>
             </div>
           ))}
         </div>
       )}
 
-      {/* Totals */}
-      <div className="quote-totals">
-        {displayBid ? (
-          <>
-            <div className="quote-total-row">
-              <span>Subtotal</span>
-              <span>${displayBid.subtotal.toFixed(2)}</span>
+      {/* Simple area display - only if drawing exists */}
+      {hasDrawings && !displayBid && (
+        <div className="quote-measurements-simple">
+          {measurements.totalArea > 0 && (
+            <div className="quote-measurement-chip">
+              {formatArea(measurements.totalArea / 10.764, unitSystem)}
             </div>
-            {displayBid.marginAmount > 0 && (
-              <div className="quote-total-row">
-                <span>Margin ({(displayBid.margin * 100).toFixed(0)}%)</span>
-                <span>${displayBid.marginAmount.toFixed(2)}</span>
-              </div>
-            )}
-            <div className="quote-total-row quote-grand-total">
-              <span>Total</span>
-              <span>${displayBid.total.toFixed(2)}</span>
-            </div>
-          </>
-        ) : (
-          <>
-            <div className="quote-total-row quote-estimate">
-              <span>Quick Estimate</span>
-              <span>${quickEstimate.toFixed(2)}</span>
-            </div>
-            <div className="quote-estimate-note">
-              Based on primary service rates
-            </div>
-          </>
-        )}
-      </div>
+          )}
+        </div>
+      )}
 
-      {/* Risk Warnings */}
+      {/* Risk Warnings - compact */}
       {displayBid?.riskFlags && displayBid.riskFlags.length > 0 && (
         <div className="quote-risks">
           {displayBid.riskFlags.map((risk, i) => (
             <div key={i} className={`quote-risk ${risk.severity}`}>
-              <span className="quote-risk-icon">{risk.severity === 'error' ? '!' : '!'}</span>
+              <span className="quote-risk-icon">!</span>
               <span>{risk.message}</span>
             </div>
           ))}
         </div>
       )}
 
-      {/* Actions */}
-      <div className="quote-actions">
-        <button className="btn btn-primary quote-action-btn" onClick={onBuildQuote}>
-          Build Quote
-        </button>
-        <button className="btn quote-action-btn" onClick={onSendQuote}>
-          Send Quote
-        </button>
-      </div>
+      {/* Details toggle - for power users */}
+      {hasDrawings && (
+        <details className="quote-details">
+          <summary>View details</summary>
+          <div className="quote-details-content">
+            <div className="quote-detail-row">
+              <span>Area</span>
+              <span>{measurements.totalArea.toLocaleString()} sq ft</span>
+            </div>
+            <div className="quote-detail-row">
+              <span>Perimeter</span>
+              <span>{measurements.totalPerimeter.toLocaleString()} ft</span>
+            </div>
+            <div className="quote-detail-row">
+              <span>Shapes</span>
+              <span>{measurements.shapes?.length || 0}</span>
+            </div>
+          </div>
+        </details>
+      )}
     </div>
   )
 }

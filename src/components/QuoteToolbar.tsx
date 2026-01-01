@@ -1,111 +1,75 @@
 "use client"
 import { useAppStore } from '@/lib/store'
-import { usePricingStore } from '@/lib/pricing-store'
 
 interface QuoteToolbarProps {
   onSettings?: () => void
-  onHelp?: () => void
+  onSendQuote?: () => void
+  onSaveDraft?: () => void
 }
 
-export default function QuoteToolbar({ onSettings, onHelp }: QuoteToolbarProps) {
-  const mode = useAppStore((s) => s.mode)
-  const setMode = useAppStore((s) => s.setMode)
+export default function QuoteToolbar({ onSettings, onSendQuote, onSaveDraft }: QuoteToolbarProps) {
   const requestClear = useAppStore((s) => s.requestClear)
   const requestCommand = useAppStore((s) => s.requestCommand)
 
   return (
     <div className="quote-toolbar">
-      {/* Drawing Tools - Simplified */}
-      <div className="quote-toolbar-group">
-        <div className="segmented" role="group" aria-label="Drawing modes">
-          <button
-            className={'btn btn-tool' + (mode === 'freehand' ? ' active' : '')}
-            onClick={() => setMode('freehand')}
-            title="Freehand Draw (F)"
-          >
-            <span className="tool-icon">✎</span>
-            <span className="tool-label">Draw</span>
-          </button>
-          <button
-            className={'btn btn-tool' + (mode === 'polygon' ? ' active' : '')}
-            onClick={() => setMode('polygon')}
-            title="Polygon (A)"
-          >
-            <span className="tool-icon">⬠</span>
-            <span className="tool-label">Polygon</span>
-          </button>
-          <button
-            className={'btn btn-tool' + (mode === 'line' ? ' active' : '')}
-            onClick={() => setMode('line')}
-            title="Line (L)"
-          >
-            <span className="tool-icon">／</span>
-            <span className="tool-label">Line</span>
-          </button>
-          <button
-            className={'btn btn-tool' + (mode === 'pan' ? ' active' : '')}
-            onClick={() => setMode('pan')}
-            title="Select/Pan (V)"
-          >
-            <span className="tool-icon">👆</span>
-            <span className="tool-label">Select</span>
-          </button>
-        </div>
+      {/* Quote Mode Badge */}
+      <div className="quote-mode-badge">
+        <span className="quote-mode-dot" />
+        QUOTE MODE
       </div>
 
-      {/* Quick Actions */}
+      {/* Edit Actions - minimal */}
       <div className="quote-toolbar-group">
         <button
           className="btn btn-tool"
-          onClick={() => requestCommand('draw:rectangle')}
-          title="Rectangle (R)"
+          onClick={() => requestCommand('undo')}
+          title="Undo (Ctrl+Z)"
         >
-          <span className="tool-icon">▭</span>
+          <span className="tool-icon">↩</span>
         </button>
         <button
           className="btn btn-tool"
-          onClick={() => requestCommand('draw:circle')}
-          title="Circle (O)"
+          onClick={() => requestCommand('redo')}
+          title="Redo (Ctrl+Y)"
         >
-          <span className="tool-icon">◯</span>
+          <span className="tool-icon">↪</span>
         </button>
-      </div>
-
-      {/* Edit Actions */}
-      <div className="quote-toolbar-group">
         <button
-          className="btn btn-tool btn-danger-subtle"
+          className="btn btn-tool"
           onClick={requestClear}
-          title="Clear All (C)"
+          title="Clear All"
         >
           <span className="tool-icon">✕</span>
-          <span className="tool-label">Clear</span>
         </button>
       </div>
 
-      {/* Right side - Settings */}
+      {/* Spacer */}
       <div className="quote-toolbar-spacer" />
 
-      <div className="quote-toolbar-group">
-        <button
-          className="btn btn-tool"
-          onClick={onSettings}
-          title="Settings"
-        >
-          <span className="tool-icon">⚙</span>
-        </button>
-        <button
-          className="btn btn-tool"
-          onClick={onHelp}
-          title="Help"
-        >
-          <span className="tool-icon">?</span>
-        </button>
-      </div>
+      {/* Settings (gear) */}
+      <button
+        className="btn btn-tool"
+        onClick={onSettings}
+        title="Settings"
+      >
+        <span className="tool-icon">⚙</span>
+      </button>
 
-      {/* Brand */}
-      <div className="quote-toolbar-brand">
-        <span className="brand">Instant Quote</span>
+      {/* Primary Actions */}
+      <div className="quote-toolbar-actions">
+        <button
+          className="btn btn-secondary"
+          onClick={onSaveDraft}
+        >
+          Save Draft
+        </button>
+        <button
+          className="btn btn-primary btn-send-quote"
+          onClick={onSendQuote}
+        >
+          Send Quote
+        </button>
       </div>
     </div>
   )
