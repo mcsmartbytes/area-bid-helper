@@ -348,6 +348,512 @@ select option {
   .bottom-left .status-bar { display: none; }
 }
 
+/* ===== QUOTE MODE LAYOUT ===== */
+
+.quote-layout {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  grid-template-columns: 260px 1fr 300px;
+  grid-template-rows: auto 1fr;
+  background: var(--bg);
+}
+
+.quote-layout-header {
+  grid-column: 1 / -1;
+  border-bottom: 1px solid var(--glass-border);
+  background: var(--glass-bg);
+  backdrop-filter: blur(14px);
+}
+
+.quote-layout-services {
+  grid-row: 2;
+  border-right: 1px solid var(--glass-border);
+  background: rgba(0,0,0,0.2);
+  overflow-y: auto;
+}
+
+.quote-layout-map {
+  grid-row: 2;
+  position: relative;
+}
+
+.quote-layout-summary {
+  grid-row: 2;
+  border-left: 1px solid var(--glass-border);
+  background: rgba(0,0,0,0.2);
+  overflow-y: auto;
+}
+
+/* Services Panel */
+.services-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.services-panel-header {
+  padding: 16px;
+  border-bottom: 1px solid var(--glass-border);
+  background: rgba(255,255,255,0.03);
+}
+
+.services-panel-title {
+  font-weight: 700;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--muted);
+}
+
+.services-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+}
+
+.services-group {
+  margin-bottom: 16px;
+}
+
+.services-group-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--muted);
+  margin-bottom: 8px;
+  padding-left: 4px;
+}
+
+.service-button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 6px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: left;
+  color: inherit;
+}
+
+.service-button:hover {
+  background: rgba(122,162,255,0.15);
+  border-color: var(--accent);
+}
+
+.service-button:active {
+  transform: scale(0.98);
+}
+
+.service-color-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--service-color, var(--accent));
+  flex-shrink: 0;
+}
+
+.service-button-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.service-button-name {
+  display: block;
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 2px;
+}
+
+.service-button-rate {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.services-empty {
+  text-align: center;
+  padding: 30px 15px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.services-loading {
+  text-align: center;
+  padding: 30px;
+  color: var(--muted);
+}
+
+/* Quote Summary Panel */
+.quote-summary {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 16px;
+}
+
+.quote-summary-header {
+  margin-bottom: 16px;
+}
+
+.quote-summary-title {
+  font-weight: 700;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--muted);
+}
+
+.quote-measurements {
+  background: rgba(0,0,0,0.2);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 16px;
+}
+
+.quote-measurement-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+}
+
+.quote-measurement-label {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.quote-measurement-value {
+  font-size: 15px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.quote-section-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.quote-line-items {
+  margin-bottom: 16px;
+}
+
+.quote-line-item {
+  background: rgba(0,0,0,0.2);
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 8px;
+}
+
+.quote-line-item-name {
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.quote-line-item-detail {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.quote-line-item-price {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.quote-totals {
+  background: rgba(122,162,255,0.1);
+  border: 1px solid rgba(122,162,255,0.3);
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 16px;
+}
+
+.quote-total-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  font-size: 14px;
+}
+
+.quote-grand-total {
+  padding-top: 10px;
+  margin-top: 6px;
+  border-top: 1px solid rgba(122,162,255,0.3);
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.quote-grand-total span:last-child {
+  color: var(--accent);
+}
+
+.quote-estimate {
+  font-size: 18px;
+}
+
+.quote-estimate span:last-child {
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.quote-estimate-note {
+  font-size: 11px;
+  color: var(--muted);
+  text-align: center;
+  margin-top: 8px;
+}
+
+.quote-risks {
+  margin-bottom: 16px;
+}
+
+.quote-risk {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+
+.quote-risk.warning {
+  background: rgba(255,200,0,0.1);
+  border: 1px solid rgba(255,200,0,0.3);
+  color: #ffc800;
+}
+
+.quote-risk.error {
+  background: rgba(255,100,100,0.1);
+  border: 1px solid rgba(255,100,100,0.3);
+  color: #ff6464;
+}
+
+.quote-risk-icon {
+  font-weight: 700;
+}
+
+.quote-actions {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.quote-action-btn {
+  width: 100%;
+  justify-content: center;
+  padding: 14px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.quote-loading {
+  text-align: center;
+  padding: 30px;
+  color: var(--muted);
+}
+
+/* Quote Toolbar */
+.quote-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+}
+
+.quote-toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.quote-toolbar-spacer {
+  flex: 1;
+}
+
+.quote-toolbar-brand {
+  margin-left: 12px;
+}
+
+.btn-tool {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 8px 14px;
+  min-width: 50px;
+  font-size: 12px;
+}
+
+.btn-tool .tool-icon {
+  font-size: 16px;
+}
+
+.btn-tool .tool-label {
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.btn-tool.active .tool-label {
+  color: var(--accent);
+}
+
+.btn-danger-subtle {
+  color: #ff8080;
+}
+
+.btn-danger-subtle:hover {
+  background: rgba(255,100,100,0.15);
+  border-color: rgba(255,100,100,0.4);
+}
+
+/* Responsive Quote Layout */
+@media (max-width: 1024px) {
+  .quote-layout {
+    grid-template-columns: 220px 1fr 280px;
+  }
+}
+
+@media (max-width: 900px) {
+  .quote-layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto 1fr auto;
+  }
+
+  .quote-layout-header {
+    grid-column: 1;
+  }
+
+  .quote-layout-services {
+    grid-row: 2;
+    border-right: none;
+    border-bottom: 1px solid var(--glass-border);
+    max-height: 120px;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  .services-list {
+    display: flex;
+    flex-direction: row;
+    gap: 8px;
+    padding: 8px 12px;
+  }
+
+  .services-group {
+    display: flex;
+    flex-direction: row;
+    gap: 8px;
+    margin-bottom: 0;
+  }
+
+  .services-group-label {
+    display: none;
+  }
+
+  .service-button {
+    min-width: 140px;
+    margin-bottom: 0;
+  }
+
+  .quote-layout-map {
+    grid-row: 3;
+  }
+
+  .quote-layout-summary {
+    grid-row: 4;
+    border-left: none;
+    border-top: 1px solid var(--glass-border);
+    max-height: 200px;
+  }
+
+  .quote-summary {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .quote-summary-header {
+    width: 100%;
+    margin-bottom: 8px;
+  }
+
+  .quote-measurements {
+    flex: 1;
+    min-width: 150px;
+    margin-bottom: 0;
+  }
+
+  .quote-totals {
+    flex: 1;
+    min-width: 150px;
+    margin-bottom: 0;
+  }
+
+  .quote-actions {
+    flex-direction: row;
+    width: 100%;
+    margin-top: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .quote-toolbar {
+    padding: 8px 12px;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .quote-toolbar-brand {
+    display: none;
+  }
+
+  .btn-tool {
+    padding: 8px 10px;
+    min-width: 44px;
+  }
+
+  .btn-tool .tool-label {
+    display: none;
+  }
+
+  .quote-layout-services {
+    max-height: 100px;
+  }
+
+  .service-button {
+    min-width: 120px;
+    padding: 10px;
+  }
+
+  .service-button-name {
+    font-size: 13px;
+  }
+
+  .service-button-rate {
+    font-size: 11px;
+  }
+}
+
 /* Extra small screens */
 @media (max-width: 400px) {
   .toolbar { gap: 6px; padding: 4px; }

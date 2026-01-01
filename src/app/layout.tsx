@@ -6,13 +6,13 @@ import '@mapbox/mapbox-gl-geocoder/dist/mapbox-gl-geocoder.css'
 import { ServiceWorkerRegistration } from '@/components/ServiceWorkerRegistration'
 
 export const metadata: Metadata = {
-  title: 'Area Bid Pro',
-  description: 'Professional area measurement and bidding tool for parking lot services',
+  title: 'Instant Quote - Map-Based Bidding',
+  description: 'Professional map-based quoting tool for contractors - measure areas, calculate prices, send quotes instantly',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'Area Bid Pro',
+    title: 'Instant Quote',
   },
 }
 
