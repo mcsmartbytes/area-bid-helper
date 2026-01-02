@@ -2,26 +2,55 @@
 import { useEffect, useState } from 'react'
 import MapView from '@/components/MapView'
 import QuoteToolbar from '@/components/QuoteToolbar'
-import ServicesPanel from '@/components/ServicesPanel'
-import QuoteSummary from '@/components/QuoteSummary'
+import { ServiceRail } from '@/components/ServiceRail'
+import { QuoteSummaryV2 } from '@/components/QuoteSummaryV2'
+import { ModeToggle } from '@/components/ModeToggle'
 import CursorTooltip from '@/components/CursorTooltip'
 import PrefHydrator from '@/components/PrefHydrator'
+import PhotoMeasureModal from '@/components/PhotoMeasureModal'
 import { useMounted } from '@/lib/useMounted'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import BidBuilder from '@/components/BidBuilder'
 import PricingConfigModal from '@/components/PricingConfigModal'
 import { usePricingStore } from '@/lib/pricing-store'
+import { useQuoteStore } from '@/lib/quote/store'
+import { useSyncMeasurements } from '@/lib/quote/useSyncMeasurements'
+import type { ServiceTemplate } from '@/lib/quote/types'
+
+// Default service templates - these will come from settings/DB later
+const DEFAULT_TEMPLATES: ServiceTemplate[] = [
+  { id: "sealcoating", name: "Sealcoating", measurementType: "AREA", unitLabel: "sqft", defaultRate: 0.12, minimumCharge: 450 },
+  { id: "crack-filling", name: "Crack Filling", measurementType: "LENGTH", unitLabel: "ft", defaultRate: 0.50, minimumCharge: 250 },
+  { id: "striping", name: "Line Striping", measurementType: "LENGTH", unitLabel: "ft", defaultRate: 0.95, minimumCharge: 200 },
+  { id: "pressure-washing", name: "Pressure Washing", measurementType: "AREA", unitLabel: "sqft", defaultRate: 0.15, minimumCharge: 150 },
+  { id: "painting", name: "Painting", measurementType: "AREA", unitLabel: "sqft", defaultRate: 0.35, minimumCharge: 350 },
+]
 
 export default function Page() {
   const mounted = useMounted()
   const [showBidBuilder, setShowBidBuilder] = useState(false)
   const [showPricingConfig, setShowPricingConfig] = useState(false)
+  const [showPhotoMeasure, setShowPhotoMeasure] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
   const [flags, setFlags] = useState<{ legacy?: boolean }>({})
 
   const createNewBid = usePricingStore((s) => s.createNewBid)
   const hydratePricing = usePricingStore((s) => s.hydrate)
   const pricingHydrated = usePricingStore((s) => s.hydrated)
+
+  // New quote store
+  const setTemplates = useQuoteStore(s => s.setTemplates)
+  const setActiveService = useQuoteStore(s => s.setActiveService)
+  const mode = useQuoteStore(s => s.mode)
+
+  // Initialize quote store with templates
+  useEffect(() => {
+    setTemplates(DEFAULT_TEMPLATES)
+    setActiveService("sealcoating")
+  }, [setTemplates, setActiveService])
+
+  // Bridge old measurements to new quote store
+  useSyncMeasurements()
 
   // Hydrate pricing store on mount
   useEffect(() => {
@@ -102,26 +131,36 @@ export default function Page() {
 
       {/* Left Panel - Services */}
       <div className="quote-layout-services">
-        <ErrorBoundary label="ServicesPanel">
-          <ServicesPanel />
+        <ErrorBoundary label="ServiceRail">
+          <ServiceRail />
         </ErrorBoundary>
       </div>
 
-      {/* Center - Map */}
+      {/* Center - Map or Photo */}
       <div className="quote-layout-map">
-        <ErrorBoundary label="MapView">
-          <MapView />
-        </ErrorBoundary>
-        <CursorTooltip />
+        {mode === "MAP" ? (
+          <>
+            <ErrorBoundary label="MapView">
+              <MapView />
+            </ErrorBoundary>
+            <CursorTooltip />
+          </>
+        ) : (
+          <div className="photo-mode-prompt">
+            <div className="photo-mode-icon">📷</div>
+            <h3>Photo Measure Mode</h3>
+            <p>Take measurements directly on photos</p>
+            <button className="btn btn-primary" onClick={() => setShowPhotoMeasure(true)}>
+              Open Photo Measure
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Right Panel - Quote Summary */}
       <div className="quote-layout-summary">
         <ErrorBoundary label="QuoteSummary">
-          <QuoteSummary
-            onBuildQuote={handleBuildQuote}
-            onSendQuote={handleSendQuote}
-          />
+          <QuoteSummaryV2 />
         </ErrorBoundary>
       </div>
 
@@ -131,6 +170,9 @@ export default function Page() {
       )}
       {showPricingConfig && (
         <PricingConfigModal onClose={() => setShowPricingConfig(false)} />
+      )}
+      {showPhotoMeasure && (
+        <PhotoMeasureModal onClose={() => setShowPhotoMeasure(false)} />
       )}
       {showHelp && (
         <div className="modal-overlay" onClick={() => setShowHelp(false)}>

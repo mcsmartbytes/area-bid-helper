@@ -981,6 +981,79 @@ select option {
   background: rgba(251, 191, 36, 0.3);
 }
 
+/* Mode Toggle (MAP/PHOTO) */
+.mode-toggle {
+  display: inline-flex;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  padding: 4px;
+  gap: 4px;
+}
+
+.mode-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s;
+  font-size: 13px;
+}
+
+.mode-toggle-btn:hover {
+  color: var(--fg);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.mode-toggle-btn.active {
+  background: rgba(255, 255, 255, 0.15);
+  color: var(--fg);
+}
+
+.mode-icon {
+  font-size: 16px;
+}
+
+.mode-label {
+  font-weight: 500;
+}
+
+/* Photo Mode Prompt */
+.photo-mode-prompt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  text-align: center;
+  padding: 40px;
+  background: radial-gradient(circle at center, rgba(122,162,255,0.05), transparent 70%);
+}
+
+.photo-mode-icon {
+  font-size: 64px;
+  margin-bottom: 20px;
+  opacity: 0.8;
+}
+
+.photo-mode-prompt h3 {
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 10px;
+  color: var(--fg);
+}
+
+.photo-mode-prompt p {
+  font-size: 14px;
+  color: var(--muted);
+  margin-bottom: 24px;
+}
+
 /* ===== END SALES-FOCUSED UX ===== */
 
 /* Quote Toolbar */

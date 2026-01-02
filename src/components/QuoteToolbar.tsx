@@ -1,6 +1,7 @@
 "use client"
 import { useAppStore } from '@/lib/store'
 import { usePricingStore } from '@/lib/pricing-store'
+import { ModeToggle } from './ModeToggle'
 
 interface QuoteToolbarProps {
   onSettings?: () => void
@@ -21,6 +22,9 @@ export default function QuoteToolbar({ onSettings, onSendQuote, onSaveDraft }: Q
         <span className="quote-mode-dot" />
         QUOTE MODE
       </div>
+
+      {/* Mode Toggle - Map vs Photo */}
+      <ModeToggle />
 
       {/* Edit Actions - minimal */}
       <div className="quote-toolbar-group">
