@@ -1,15 +1,30 @@
 "use client"
 
-import { FormEvent, useState } from "react"
+import { FormEvent, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useQuoteStore } from "@/lib/quote/store"
+import { industryOptions } from "@/lib/quote/industries"
 
 export default function NewQuotePage() {
   const router = useRouter()
   const [address, setAddress] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [industryId, setIndustryId] = useState<string | null>(null)
   const setQuoteAddress = useQuoteStore((s) => s.setQuoteAddress)
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('QUOTE_INDUSTRY')
+      if (!stored) {
+        router.replace('/onboarding')
+        return
+      }
+      setIndustryId(stored)
+    } catch {}
+  }, [router])
+
+  const industry = industryOptions.find((option) => option.id === industryId)
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -31,6 +46,22 @@ export default function NewQuotePage() {
         <div className="quote-entry-label">Instant Quote (Map)</div>
         <h1>Create Quote</h1>
         <p>Start every bid by locking in the job address. Nothing else.</p>
+        {industry && (
+          <div className="quote-entry-industry">
+            <span>Industry:</span>
+            <strong>{industry.name}</strong>
+            <button
+              type="button"
+              className="btn btn-link"
+              onClick={() => {
+                localStorage.removeItem('QUOTE_INDUSTRY')
+                router.replace('/onboarding')
+              }}
+            >
+              change
+            </button>
+          </div>
+        )}
         <form className="quote-entry-form" onSubmit={handleSubmit}>
           <label className="sr-only" htmlFor="job-address">Job address</label>
           <input

@@ -15,18 +15,9 @@ import PricingConfigModal from '@/components/PricingConfigModal'
 import { usePricingStore } from '@/lib/pricing-store'
 import { useQuoteStore } from '@/lib/quote/store'
 import { useSyncMeasurements } from '@/lib/quote/useSyncMeasurements'
-import type { ServiceTemplate } from '@/lib/quote/types'
+import { getIndustryTemplates } from '@/lib/quote/industries'
 import { readToken } from '@/lib/token'
 import { useAppStore } from '@/lib/store'
-
-// Default service templates - these will come from settings/DB later
-const DEFAULT_TEMPLATES: ServiceTemplate[] = [
-  { id: "sealcoating", name: "Sealcoating", measurementType: "AREA", unitLabel: "sqft", defaultRate: 0.12, minimumCharge: 450 },
-  { id: "crack-filling", name: "Crack Filling", measurementType: "LENGTH", unitLabel: "ft", defaultRate: 0.50, minimumCharge: 250 },
-  { id: "striping", name: "Line Striping", measurementType: "LENGTH", unitLabel: "ft", defaultRate: 0.95, minimumCharge: 200 },
-  { id: "pressure-washing", name: "Pressure Washing", measurementType: "AREA", unitLabel: "sqft", defaultRate: 0.15, minimumCharge: 150 },
-  { id: "painting", name: "Painting", measurementType: "AREA", unitLabel: "sqft", defaultRate: 0.35, minimumCharge: 350 },
-]
 
 function QuoteMapPageInner() {
   const router = useRouter()
@@ -34,6 +25,7 @@ function QuoteMapPageInner() {
   const [geocodeStatus, setGeocodeStatus] = useState<'idle' | 'loading' | 'error' | 'success'>('idle')
   const [geocodeMessage, setGeocodeMessage] = useState<string | null>(null)
   const lastAddressRef = useRef<string | null>(null)
+  const [industryId, setIndustryId] = useState<string | null>(null)
   const mounted = useMounted()
   const [showBidBuilder, setShowBidBuilder] = useState(false)
   const [showPricingConfig, setShowPricingConfig] = useState(false)
@@ -55,11 +47,28 @@ function QuoteMapPageInner() {
   const mode = useQuoteStore(s => s.mode)
   const setStyleId = useAppStore((s) => s.setStyleId)
 
-  // Initialize quote store with templates
   useEffect(() => {
-    setTemplates(DEFAULT_TEMPLATES)
-    setActiveService("sealcoating")
-  }, [setTemplates, setActiveService])
+    if (!mounted) return
+    try {
+      const stored = localStorage.getItem('QUOTE_INDUSTRY') || null
+      if (!stored) {
+        router.replace('/onboarding')
+        return
+      }
+      setIndustryId(stored)
+    } catch {
+      setIndustryId(null)
+    }
+  }, [router, mounted])
+
+  useEffect(() => {
+    if (!industryId) return
+    const templates = getIndustryTemplates(industryId)
+    setTemplates(templates)
+    if (templates.length > 0) {
+      setActiveService(templates[0].id)
+    }
+  }, [industryId, setTemplates, setActiveService])
 
   useEffect(() => {
     setStyleId('mapbox://styles/mapbox/satellite-streets-v12')
@@ -148,8 +157,8 @@ function QuoteMapPageInner() {
     setShowBidBuilder(true)
   }
 
-  if (!mounted) {
-    return <div className="quote-layout" />
+  if (!mounted || !industryId) {
+    return <div className="quote-layout-loading">Loading your services…</div>
   }
 
   // Legacy mode for backwards compatibility
