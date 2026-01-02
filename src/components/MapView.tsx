@@ -6,6 +6,7 @@ import { useAppStore } from '@/lib/store'
 import { readToken } from '@/lib/token'
 import { usePricingStore } from '@/lib/pricing-store'
 import type { MeasurementSnapshot } from '@/lib/pricing-types'
+import { useQuoteStore } from '@/lib/quote/store'
 
 const SQFT_PER_SQM = 10.76391041671
 const FT_PER_METER = 3.2808398950131
@@ -59,6 +60,8 @@ export default function MapView() {
   const enable3D = useAppStore((s) => s.enable3D)
   const updateLivePricingMeasurements = usePricingStore((s) => s.updateLiveMeasurements)
   const commitPricingMeasurements = usePricingStore((s) => s.commitMeasurements)
+  const pendingMapFocus = useQuoteStore((s) => s.pendingMapFocus)
+  const consumeMapFocus = useQuoteStore((s) => s.consumeMapFocus)
 
   const formatHeightsForSnapshot = () => {
     const heights = heightMeasurementsRef.current || []
@@ -560,6 +563,20 @@ export default function MapView() {
       } catch {}
     }
   }, [enable3D, mapReadyTick])
+
+  useEffect(() => {
+    if (!pendingMapFocus) return
+    const map = mapRef.current
+    if (!map) return
+    try {
+      map.flyTo({
+        center: [pendingMapFocus.lng, pendingMapFocus.lat],
+        zoom: pendingMapFocus.zoom ?? Math.max(map.getZoom(), 18),
+        essential: true,
+      })
+    } catch {}
+    consumeMapFocus()
+  }, [pendingMapFocus, consumeMapFocus, mapReadyTick])
 
   // Capture unhandled rejections while initializing
   useEffect(() => {

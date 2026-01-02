@@ -27,14 +27,10 @@ export function ServiceRail() {
   return (
     <div className="services-panel">
       <div className="services-panel-header">
-        <span className="services-panel-step">1</span>
-        <span className="services-panel-title">Select Service</span>
+        <div className="services-panel-eyebrow">Create Quote</div>
+        <h2>Services</h2>
+        <p>Pick a service to auto-arm the correct drawing tool. Rates and minimums load instantly.</p>
       </div>
-      {templates.length === 0 && (
-        <div className="services-panel-hint">
-          Select a service, then draw on the map
-        </div>
-      )}
 
       <div className="services-list">
         {areaServices.length > 0 && (
@@ -51,6 +47,7 @@ export function ServiceRail() {
                   <span className="service-button-name">{t.name}</span>
                   <span className="service-button-rate">
                     ${t.defaultRate.toFixed(2)}/{t.unitLabel}
+                    {t.minimumCharge ? ` · $${Math.round(t.minimumCharge).toLocaleString()} min` : ''}
                   </span>
                 </div>
                 {activeServiceId === t.id && <span className="service-check">✓</span>}
@@ -73,6 +70,7 @@ export function ServiceRail() {
                   <span className="service-button-name">{t.name}</span>
                   <span className="service-button-rate">
                     ${t.defaultRate.toFixed(2)}/{t.unitLabel}
+                    {t.minimumCharge ? ` · $${Math.round(t.minimumCharge).toLocaleString()} min` : ''}
                   </span>
                 </div>
                 {activeServiceId === t.id && <span className="service-check">✓</span>}

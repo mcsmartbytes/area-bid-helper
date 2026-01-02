@@ -1,6 +1,15 @@
 export type Mode = "MAP" | "PHOTO";
+export type QuoteWorkflowMode = "QUOTE" | "EDIT";
 
 export type MeasurementType = "AREA" | "LENGTH" | "COUNT";
+
+export type MapFocus = {
+  lng: number;
+  lat: number;
+  zoom?: number;
+  address?: string;
+  requestedAt: number;
+};
 
 export type ServiceTemplate = {
   id: string;

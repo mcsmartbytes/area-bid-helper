@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { computeQuoteLines } from "./engine";
-import { Geometry, MeasurementDoc, Mode, QuoteLine, ServiceTemplate } from "./types";
+import { Geometry, MapFocus, MeasurementDoc, Mode, QuoteLine, QuoteWorkflowMode, ServiceTemplate } from "./types";
 
 function now() { return new Date().toISOString(); }
 function uid() { return crypto.randomUUID(); }
@@ -8,7 +8,10 @@ function uid() { return crypto.randomUUID(); }
 type QuoteState = {
   jobId?: string;
   mode: Mode;
+  workflowMode: QuoteWorkflowMode;
   activeServiceId?: string;
+  quoteAddress?: string;
+  pendingMapFocus?: MapFocus;
 
   templates: ServiceTemplate[];
   geometries: Geometry[];
@@ -23,9 +26,13 @@ type QuoteState = {
   measurementDocId?: string;
 
   setMode: (mode: Mode) => void;
+  setWorkflowMode: (mode: QuoteWorkflowMode) => void;
   setJob: (jobId: string) => void;
   setTemplates: (t: ServiceTemplate[]) => void;
   setActiveService: (serviceId: string) => void;
+  setQuoteAddress: (address: string) => void;
+  requestMapFocus: (focus: Omit<MapFocus, "requestedAt">) => void;
+  consumeMapFocus: () => void;
 
   upsertGeometry: (g: Omit<Geometry, "createdAt" | "updatedAt"> & { createdAt?: string; updatedAt?: string }) => void;
   removeGeometry: (id: string) => void;
@@ -38,6 +45,7 @@ type QuoteState = {
 
 export const useQuoteStore = create<QuoteState>((set, get) => ({
   mode: "MAP",
+  workflowMode: "QUOTE",
   templates: [],
   geometries: [],
   rateOverrides: {},
@@ -46,6 +54,7 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
   total: 0,
 
   setMode: (mode) => set({ mode }),
+  setWorkflowMode: (workflowMode) => set({ workflowMode }),
   setJob: (jobId) => set({ jobId }),
   setTemplates: (templates) => {
     set({ templates });
@@ -54,6 +63,12 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
     set({ lines, total });
   },
   setActiveService: (activeServiceId) => set({ activeServiceId }),
+  setQuoteAddress: (quoteAddress) => set({ quoteAddress }),
+  requestMapFocus: (focus) => {
+    const zoom = (typeof focus.zoom === "number" ? focus.zoom : undefined) ?? 19;
+    set({ pendingMapFocus: { ...focus, zoom, requestedAt: Date.now() } as MapFocus })
+  },
+  consumeMapFocus: () => set({ pendingMapFocus: undefined }),
 
   upsertGeometry: (g) => {
     const state = get();

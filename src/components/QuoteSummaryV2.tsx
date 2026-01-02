@@ -25,11 +25,10 @@ export function QuoteSummaryV2() {
   return (
     <div className="quote-summary">
       <div className="quote-summary-header">
-        <span className="quote-summary-step">2</span>
-        <span className="quote-summary-title">Your Quote</span>
+        <div className="quote-summary-eyebrow">Live Quote</div>
+        <p>Numbers update with every draw, undo, or service switch.</p>
       </div>
 
-      {/* BIG ESTIMATED TOTAL */}
       <div className="quote-hero">
         <div className="quote-hero-label">ESTIMATED TOTAL</div>
         <div className={`quote-hero-amount ${isPulsing ? 'pulse' : ''}`}>
@@ -52,21 +51,24 @@ export function QuoteSummaryV2() {
         </div>
       )}
 
-      {/* Line Items */}
-      {lines.length > 0 && (
-        <div className="quote-line-items">
-          {lines.map(l => (
-            <div key={l.serviceId} className="quote-line-item">
-              <div className="quote-line-item-name">{l.serviceName}</div>
-              <div className="quote-line-item-calc">
-                {l.qty.toLocaleString()} {l.unitLabel} × ${l.rate.toFixed(2)}
-                {l.minApplied && " • min applied"}
-              </div>
-              <div className="quote-line-item-price">${Math.round(l.subtotal).toLocaleString()}</div>
+      <div className="quote-line-items">
+        {lines.length === 0 && (
+          <div className="quote-line-item empty">No services measured yet.</div>
+        )}
+        {lines.map(l => (
+          <div key={l.serviceId} className="quote-line-item">
+            <div className="quote-line-item-header">
+              <span className="quote-line-item-name">{l.serviceName}</span>
+              <span className="quote-line-item-price">${Math.round(l.subtotal).toLocaleString()}</span>
             </div>
-          ))}
-        </div>
-      )}
+            <div className="quote-line-item-calc">
+              <span>{l.qty.toLocaleString()} {l.unitLabel}</span>
+              <span>× ${l.rate.toFixed(2)}</span>
+              {l.minApplied && <span className="quote-line-item-min">min applied</span>}
+            </div>
+          </div>
+        ))}
+      </div>
 
       {/* Details toggle */}
       {hasDrawings && (
