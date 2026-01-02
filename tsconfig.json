@@ -23,6 +23,15 @@
       ],
       "@/lib/*": [
         "src/lib/*"
+      ],
+      "@/tools/*": [
+        "src/tools/*"
+      ],
+      "@/types/*": [
+        "src/types/*"
+      ],
+      "@/concrete/*": [
+        "src/lib/concrete/*"
       ]
     },
     "incremental": true,

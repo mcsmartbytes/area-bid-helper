@@ -18,6 +18,11 @@ import { useSyncMeasurements } from '@/lib/quote/useSyncMeasurements'
 import { getIndustryTemplates } from '@/lib/quote/industries'
 import { readToken } from '@/lib/token'
 import { useAppStore } from '@/lib/store'
+import LiveQuotePanelConcrete from '@/components/LiveQuotePanelConcrete'
+import ConcreteSlabDetails from '@/components/ConcreteSlabDetails'
+import ConcreteLineSelector from '@/components/ConcreteLineSelector'
+import ConcreteMeasurementsList from '@/components/ConcreteMeasurementsList'
+import { useConcreteStore, useSelectedMeasurement } from '@/lib/concrete/store'
 
 function QuoteMapPageInner() {
   const router = useRouter()
@@ -32,7 +37,11 @@ function QuoteMapPageInner() {
   const [showPhotoMeasure, setShowPhotoMeasure] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
   const [flags, setFlags] = useState<{ legacy?: boolean }>({})
+  const [showConcreteMeasurements, setShowConcreteMeasurements] = useState(false)
   const addressParam = searchParams?.get('address')?.trim() ?? ''
+  const isConcrete = industryId === 'concrete'
+  const selectedConcreteMeasurement = useSelectedMeasurement()
+  const clearConcrete = useConcreteStore((s) => s.clearAll)
 
   const createNewBid = usePricingStore((s) => s.createNewBid)
   const hydratePricing = usePricingStore((s) => s.hydrate)
@@ -46,6 +55,7 @@ function QuoteMapPageInner() {
   const quoteAddress = useQuoteStore(s => s.quoteAddress)
   const mode = useQuoteStore(s => s.mode)
   const setStyleId = useAppStore((s) => s.setStyleId)
+  const setMode = useAppStore((s) => s.setMode)
 
   useEffect(() => {
     if (!mounted) return
@@ -73,6 +83,13 @@ function QuoteMapPageInner() {
   useEffect(() => {
     setStyleId('mapbox://styles/mapbox/satellite-streets-v12')
   }, [setStyleId])
+
+  // Auto-set concrete mode when industry is concrete
+  useEffect(() => {
+    if (isConcrete) {
+      setMode('concrete')
+    }
+  }, [isConcrete, setMode])
 
   useEffect(() => {
     if (addressParam) {
@@ -241,9 +258,44 @@ function QuoteMapPageInner() {
       {/* Right Panel - Quote Summary */}
       <div className="quote-layout-summary">
         <ErrorBoundary label="QuoteSummary">
-          <QuoteSummaryV2 />
+          {isConcrete ? (
+            <LiveQuotePanelConcrete onShowList={() => setShowConcreteMeasurements(true)} />
+          ) : (
+            <QuoteSummaryV2 />
+          )}
         </ErrorBoundary>
       </div>
+
+      {/* Concrete-specific floating panels */}
+      {isConcrete && (
+        <>
+          {/* Line type selector */}
+          <div style={{
+            position: 'fixed',
+            bottom: 100,
+            left: 320,
+            zIndex: 100,
+          }}>
+            <div className="glass" style={{ padding: 12, borderRadius: 8 }}>
+              <ConcreteLineSelector />
+            </div>
+          </div>
+
+          {/* Slab details drawer when selected */}
+          {selectedConcreteMeasurement?.type === 'CONCRETE_SLAB' && (
+            <div style={{
+              position: 'fixed',
+              top: 80,
+              right: 320,
+              zIndex: 100,
+              maxHeight: 'calc(100vh - 160px)',
+              overflowY: 'auto',
+            }}>
+              <ConcreteSlabDetails />
+            </div>
+          )}
+        </>
+      )}
 
       {/* Modals */}
       {showBidBuilder && (
@@ -254,6 +306,13 @@ function QuoteMapPageInner() {
       )}
       {showPhotoMeasure && (
         <PhotoMeasureModal onClose={() => setShowPhotoMeasure(false)} />
+      )}
+      {showConcreteMeasurements && (
+        <div className="modal-overlay" onClick={() => setShowConcreteMeasurements(false)}>
+          <div onClick={(e) => e.stopPropagation()}>
+            <ConcreteMeasurementsList onClose={() => setShowConcreteMeasurements(false)} />
+          </div>
+        </div>
       )}
       {showHelp && (
         <div className="modal-overlay" onClick={() => setShowHelp(false)}>

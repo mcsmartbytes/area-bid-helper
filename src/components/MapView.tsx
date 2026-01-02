@@ -7,6 +7,11 @@ import { readToken } from '@/lib/token'
 import { usePricingStore } from '@/lib/pricing-store'
 import type { MeasurementSnapshot } from '@/lib/pricing-types'
 import { useQuoteStore } from '@/lib/quote/store'
+import { useStallTool } from '@/tools/useStallTool'
+import { useConcreteTool } from '@/tools/useConcreteTool'
+import type { StallGroupMeasurement } from '@/types/measurements'
+import { enableGoogleSatellite, disableGoogleSatellite } from '@/components/maps/useImageryToggle'
+import { GoogleAttributionOverlay } from '@/components/maps/GoogleAttributionOverlay'
 
 const SQFT_PER_SQM = 10.76391041671
 const FT_PER_METER = 3.2808398950131
@@ -42,6 +47,11 @@ export default function MapView() {
   const committedMetricsRef = useRef<{ areaSqM: number; lengthM: number }>({ areaSqM: 0, lengthM: 0 })
   const heightMeasurementsRef = useRef(heightMeasurements)
   const computeMeasurementsRef = useRef<(() => void) | null>(null)
+  const [stallGroups, setStallGroups] = useState<StallGroupMeasurement[]>([])
+  const [liveStallPreview, setLiveStallPreview] = useState<{ rowLengthFt: number; stallCount: number; linealFeet: number } | null>(null)
+  const [imageryMode, setImageryMode] = useState<'mapbox' | 'google'>('mapbox')
+  const [googleAttribution, setGoogleAttribution] = useState<string>('')
+  const [imageryLoading, setImageryLoading] = useState(false)
 
   useEffect(() => {
     setMounted(true)
@@ -62,6 +72,29 @@ export default function MapView() {
   const commitPricingMeasurements = usePricingStore((s) => s.commitMeasurements)
   const pendingMapFocus = useQuoteStore((s) => s.pendingMapFocus)
   const consumeMapFocus = useQuoteStore((s) => s.consumeMapFocus)
+
+  // Stall Tool integration
+  useStallTool(mapRef.current, {
+    enabled: mode === 'stall',
+    stallWidthFt: 9,
+    stallDepthFt: 18,
+    layout: 'single',
+    hasStopBars: true,
+    stopBarCountMode: 'auto',
+    existing: stallGroups,
+    onCreate: (measurement) => {
+      setStallGroups((prev) => [...prev, measurement])
+    },
+    onLiveUpdate: setLiveStallPreview,
+    onDelete: (id) => {
+      setStallGroups((prev) => prev.filter((s) => s.id !== id))
+    },
+  })
+
+  // Concrete Tool integration
+  useConcreteTool(mapRef.current, drawRef.current, {
+    enabled: mode === 'concrete',
+  })
 
   const formatHeightsForSnapshot = () => {
     const heights = heightMeasurementsRef.current || []
@@ -564,6 +597,51 @@ export default function MapView() {
     }
   }, [enable3D, mapReadyTick])
 
+  // Google satellite imagery toggle
+  useEffect(() => {
+    const map = mapRef.current
+    console.log('[Imagery] Effect triggered, mode:', imageryMode, 'map:', !!map)
+    if (!map) return
+
+    const apply = async () => {
+      console.log('[Imagery] Applying mode:', imageryMode)
+      if (imageryMode === 'google') {
+        setImageryLoading(true)
+        try {
+          console.log('[Imagery] Enabling Google satellite...')
+          const session = await enableGoogleSatellite(map)
+          console.log('[Imagery] Google satellite enabled, session:', session)
+          setGoogleAttribution(session.attributionText || 'Data © Google')
+        } catch (err) {
+          console.error('[Imagery] Failed to enable Google satellite:', err)
+          setImageryMode('mapbox')
+        } finally {
+          setImageryLoading(false)
+        }
+      } else {
+        console.log('[Imagery] Disabling Google satellite')
+        disableGoogleSatellite(map)
+        setGoogleAttribution('')
+      }
+    }
+
+    // Wait for style to be ready before applying
+    const tryApply = () => {
+      if (map.isStyleLoaded()) {
+        console.log('[Imagery] Style loaded, applying now')
+        void apply()
+      } else {
+        console.log('[Imagery] Style not loaded, waiting for idle...')
+        map.once('idle', () => {
+          console.log('[Imagery] Map idle, applying now')
+          void apply()
+        })
+      }
+    }
+
+    tryApply()
+  }, [imageryMode, mapReadyTick])
+
   useEffect(() => {
     if (!pendingMapFocus) return
     const map = mapRef.current
@@ -602,7 +680,7 @@ export default function MapView() {
   useEffect(() => {
     const draw = drawRef.current
     if (!draw) return
-    if (mode === 'polygon') draw.changeMode('draw_polygon')
+    if (mode === 'polygon' || mode === 'concrete') draw.changeMode('draw_polygon')
     else if (mode === 'line') draw.changeMode('draw_line_string')
     else draw.changeMode('simple_select')
   }, [mode])
@@ -664,6 +742,7 @@ export default function MapView() {
     committedMetricsRef.current = { areaSqM: 0, lengthM: 0 }
     setTextAnnotations([])
     setHeightMeasurements([])
+    setStallGroups([])
     const emptySnapshot: MeasurementSnapshot = { totalArea: 0, totalPerimeter: 0, shapes: [], heights: [] }
     updateLivePricingMeasurements(emptySnapshot)
     commitPricingMeasurements(emptySnapshot)
@@ -1078,6 +1157,8 @@ export default function MapView() {
       else if (key === 'f') useAppStore.getState().setMode('freehand')
       else if (key === 't') useAppStore.getState().setMode('text')
       else if (key === 'h') useAppStore.getState().setMode('height')
+      else if (key === 's') useAppStore.getState().setMode('stall')
+      else if (key === 'g') useAppStore.getState().setMode('concrete')
       else if (key === 'c') useAppStore.getState().requestClear()
       else if (key === 'u') toggleUnits()
       else if (key === 'j') useAppStore.getState().requestCommand('export:json')
@@ -1186,6 +1267,92 @@ export default function MapView() {
               </button>
             )}
           </div>
+        </div>
+      )}
+      {/* Stall Tool Live Preview */}
+      {mode === 'stall' && (
+        <div style={{ position: 'fixed', bottom: 100, right: 16, zIndex: 900 }}>
+          <div className="glass" style={{ padding: '12px 16px', borderRadius: 12, minWidth: 180 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, color: 'var(--accent)' }}>
+              Stall Tool (S)
+            </div>
+            {liveStallPreview ? (
+              <div style={{ display: 'grid', gap: 6, fontSize: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--muted)' }}>Row Length:</span>
+                  <span>{liveStallPreview.rowLengthFt.toFixed(1)} ft</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--muted)' }}>Stalls:</span>
+                  <span style={{ fontWeight: 600 }}>{liveStallPreview.stallCount}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--muted)' }}>Lineal Feet:</span>
+                  <span>{liveStallPreview.linealFeet.toFixed(1)} lf</span>
+                </div>
+              </div>
+            ) : (
+              <div style={{ fontSize: 11, color: 'var(--muted)' }}>
+                Click and drag to draw a stall row
+              </div>
+            )}
+            {stallGroups.length > 0 && (
+              <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--glass-border)', fontSize: 11 }}>
+                <div style={{ color: 'var(--muted)', marginBottom: 4 }}>Total: {stallGroups.length} row{stallGroups.length !== 1 ? 's' : ''}</div>
+                <div>
+                  {stallGroups.reduce((sum, g) => sum + g.stall_count, 0)} stalls |{' '}
+                  {stallGroups.reduce((sum, g) => sum + g.lineal_feet, 0).toFixed(0)} lf
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+      {/* Imagery Toggle */}
+      <div style={{ position: 'fixed', bottom: 16, left: '50%', transform: 'translateX(-50%)', zIndex: 900 }}>
+        <div className="glass" style={{ padding: '6px 8px', borderRadius: 8, display: 'flex', gap: 4 }}>
+          <button
+            onClick={() => setImageryMode('mapbox')}
+            disabled={imageryLoading}
+            style={{
+              padding: '6px 12px',
+              fontSize: 11,
+              fontWeight: 500,
+              borderRadius: 6,
+              border: imageryMode === 'mapbox' ? '1px solid var(--accent)' : '1px solid var(--glass-border)',
+              background: imageryMode === 'mapbox' ? 'rgba(0,255,136,0.15)' : 'rgba(0,0,0,0.3)',
+              color: imageryMode === 'mapbox' ? 'var(--accent)' : 'inherit',
+              cursor: imageryLoading ? 'wait' : 'pointer',
+              opacity: imageryLoading ? 0.6 : 1,
+              transition: 'all 0.15s ease',
+            }}
+          >
+            Standard
+          </button>
+          <button
+            onClick={() => setImageryMode('google')}
+            disabled={imageryLoading}
+            style={{
+              padding: '6px 12px',
+              fontSize: 11,
+              fontWeight: 500,
+              borderRadius: 6,
+              border: imageryMode === 'google' ? '1px solid var(--accent)' : '1px solid var(--glass-border)',
+              background: imageryMode === 'google' ? 'rgba(0,255,136,0.15)' : 'rgba(0,0,0,0.3)',
+              color: imageryMode === 'google' ? 'var(--accent)' : 'inherit',
+              cursor: imageryLoading ? 'wait' : 'pointer',
+              opacity: imageryLoading ? 0.6 : 1,
+              transition: 'all 0.15s ease',
+            }}
+          >
+            {imageryLoading ? 'Loading...' : 'High-Res'}
+          </button>
+        </div>
+      </div>
+      {/* Google Attribution Overlay */}
+      {imageryMode === 'google' && googleAttribution && (
+        <div style={{ position: 'fixed', bottom: 0, left: 0, zIndex: 800 }}>
+          <GoogleAttributionOverlay text={googleAttribution} />
         </div>
       )}
     </>
