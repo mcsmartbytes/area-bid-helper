@@ -53,6 +53,15 @@ body {
   padding: 32px;
 }
 
+.quote-layout-loading {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  color: var(--muted);
+}
+
 .quote-entry-card {
   width: min(520px, 90vw);
   border-radius: 28px;

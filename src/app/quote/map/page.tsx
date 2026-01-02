@@ -1,5 +1,5 @@
 "use client"
-import { useEffect, useRef, useState } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import MapView from '@/components/MapView'
 import QuoteToolbar from '@/components/QuoteToolbar'
@@ -28,7 +28,7 @@ const DEFAULT_TEMPLATES: ServiceTemplate[] = [
   { id: "painting", name: "Painting", measurementType: "AREA", unitLabel: "sqft", defaultRate: 0.35, minimumCharge: 350 },
 ]
 
-export default function Page() {
+function QuoteMapPageInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [geocodeStatus, setGeocodeStatus] = useState<'idle' | 'loading' | 'error' | 'success'>('idle')
@@ -275,5 +275,13 @@ export default function Page() {
         </div>
       )}
     </div>
+  )
+}
+
+export default function Page() {
+  return (
+    <Suspense fallback={<div className="quote-layout-loading">Preparing quote workspace…</div>}>
+      <QuoteMapPageInner />
+    </Suspense>
   )
 }
