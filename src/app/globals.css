@@ -619,6 +619,7 @@ select option {
   border: 1px solid transparent;
   background: rgba(0,0,0,0.25);
   transition: border-color 0.2s ease, background 0.2s ease;
+  color: var(--fg);
 }
 
 .tool-selector-button-active {
@@ -630,12 +631,13 @@ select option {
   display: block;
   font-weight: 600;
   font-size: 13px;
+  color: var(--fg);
 }
 
 .tool-selector-desc {
   display: block;
   font-size: 12px;
-  color: var(--muted);
+  color: rgba(255,255,255,0.7);
 }
 
 .services-group {

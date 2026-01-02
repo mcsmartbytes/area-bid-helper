@@ -15,9 +15,11 @@ export function ServiceRail() {
     if (template) {
       // Auto-arm drawing based on measurement type
       if (template.measurementType === "AREA") {
-        setMode('freehand')
+        setMode('polygon')
       } else if (template.measurementType === "LENGTH") {
         setMode('line')
+      } else {
+        setMode('polygon')
       }
     }
   }
