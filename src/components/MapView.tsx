@@ -643,11 +643,19 @@ export default function MapView() {
   }, [imageryMode, mapReadyTick])
 
   useEffect(() => {
+    console.log('[FlyTo] Effect triggered:', { hasFocus: !!pendingMapFocus, hasMap: !!mapRef.current, mapReadyTick })
     if (!pendingMapFocus) return
     const map = mapRef.current
-    if (!map) return
+    if (!map) {
+      console.log('[FlyTo] No map ref yet')
+      return
+    }
     // Wait until map 'load' event has fired (mapReadyTick > 0)
-    if (mapReadyTick === 0) return
+    if (mapReadyTick === 0) {
+      console.log('[FlyTo] Map not ready (mapReadyTick === 0)')
+      return
+    }
+    console.log('[FlyTo] Executing flyTo:', pendingMapFocus)
     try {
       map.flyTo({
         center: [pendingMapFocus.lng, pendingMapFocus.lat],
@@ -655,8 +663,9 @@ export default function MapView() {
         essential: true,
       })
       consumeMapFocus()
-    } catch {
-      // Don't consume if flyTo failed - will retry when mapReadyTick changes
+      console.log('[FlyTo] Success')
+    } catch (err) {
+      console.error('[FlyTo] Error:', err)
     }
   }, [pendingMapFocus, consumeMapFocus, mapReadyTick])
 
