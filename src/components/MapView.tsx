@@ -646,8 +646,8 @@ export default function MapView() {
     if (!pendingMapFocus) return
     const map = mapRef.current
     if (!map) return
-    // Wait until map is fully loaded before flying (mapReadyTick > 0 means 'load' event fired)
-    if (mapReadyTick === 0 || !map.loaded()) return
+    // Wait until map 'load' event has fired (mapReadyTick > 0)
+    if (mapReadyTick === 0) return
     try {
       map.flyTo({
         center: [pendingMapFocus.lng, pendingMapFocus.lat],
