@@ -2,3 +2,9 @@
 node_modules
 *.log
 .git
+*.zip
+*.png
+*.jpg
+*.jpeg
+tsconfig.tsbuildinfo
+PROGRESS*.md

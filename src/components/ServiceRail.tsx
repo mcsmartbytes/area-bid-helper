@@ -29,6 +29,7 @@ export function ServiceRail() {
 
   const areaServices = templates.filter(t => t.measurementType === "AREA")
   const linearServices = templates.filter(t => t.measurementType === "LENGTH")
+  const countServices = templates.filter(t => t.measurementType === "COUNT")
   const toolOptions: { id: 'freehand' | 'polygon' | 'line'; label: string; hint: string }[] = [
     { id: 'freehand', label: 'Quick Fill', hint: 'Drag to paint asphalt' },
     { id: 'polygon', label: 'Polygon', hint: 'Click perfect corners' },
@@ -189,7 +190,7 @@ export function ServiceRail() {
       <div className="services-list">
         {areaServices.length > 0 && (
           <div className="services-group">
-            <div className="services-group-label">Area Services</div>
+            <div className="services-group-label">Area Services ({areaServices.length})</div>
             {areaServices.map(t => (
               <button
                 key={t.id}
@@ -212,7 +213,7 @@ export function ServiceRail() {
 
         {linearServices.length > 0 && (
           <div className="services-group">
-            <div className="services-group-label">Linear Services</div>
+            <div className="services-group-label">Linear Services ({linearServices.length})</div>
             {linearServices.map(t => (
               <button
                 key={t.id}
@@ -220,6 +221,29 @@ export function ServiceRail() {
                 onClick={() => handleServiceClick(t.id)}
               >
                 <span className="service-color-dot service-color-linear" />
+                <div className="service-button-info">
+                  <span className="service-button-name">{t.name}</span>
+                  <span className="service-button-rate">
+                    ${t.defaultRate.toFixed(2)}/{t.unitLabel}
+                    {t.minimumCharge ? ` · $${Math.round(t.minimumCharge).toLocaleString()} min` : ''}
+                  </span>
+                </div>
+                {activeServiceId === t.id && <span className="service-check">✓</span>}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {countServices.length > 0 && (
+          <div className="services-group">
+            <div className="services-group-label">Per-Unit Services ({countServices.length})</div>
+            {countServices.map(t => (
+              <button
+                key={t.id}
+                className={`service-button ${activeServiceId === t.id ? 'service-button-selected' : ''}`}
+                onClick={() => handleServiceClick(t.id)}
+              >
+                <span className="service-color-dot service-color-count" />
                 <div className="service-button-info">
                   <span className="service-button-name">{t.name}</span>
                   <span className="service-button-rate">
