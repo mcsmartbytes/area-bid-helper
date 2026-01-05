@@ -1,4 +1,5 @@
 "use client"
+import { useRouter } from 'next/navigation'
 import { useAppStore } from '@/lib/store'
 import { usePricingStore } from '@/lib/pricing-store'
 import { ModeToggle } from './ModeToggle'
@@ -14,6 +15,7 @@ interface QuoteToolbarProps {
 }
 
 export default function QuoteToolbar({ onSettings, onSendQuote, onSaveDraft, address, geocodeStatus = 'idle', geocodeMessage }: QuoteToolbarProps) {
+  const router = useRouter()
   const liveMeasurements = usePricingStore((s) => s.liveMeasurements)
   const hasDrawings = liveMeasurements && (liveMeasurements.totalArea > 0 || liveMeasurements.totalPerimeter > 0)
   const requestClear = useAppStore((s) => s.requestClear)
@@ -41,7 +43,14 @@ export default function QuoteToolbar({ onSettings, onSendQuote, onSaveDraft, add
           {advancedActive ? 'EDIT MODE' : 'QUOTE MODE'}
         </div>
         <div className="quote-toolbar-address">
-          <div className="quote-toolbar-label">{address || 'Waiting for address'}</div>
+          <button
+            className="quote-toolbar-label quote-toolbar-address-btn"
+            onClick={() => router.push('/quote/new')}
+            title="Click to change address or start new quote"
+          >
+            {address || 'Waiting for address'}
+            <span className="quote-toolbar-change">✎</span>
+          </button>
           {statusLabel && (
             <div className={`quote-toolbar-status status-${geocodeStatus}`}>
               {statusLabel}
