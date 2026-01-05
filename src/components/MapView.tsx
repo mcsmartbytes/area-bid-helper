@@ -680,14 +680,18 @@ export default function MapView() {
     }
   }, [enabled])
 
-  // respond to mode changes
+  // respond to mode changes - include mapReadyTick to re-run when draw is ready
   useEffect(() => {
     const draw = drawRef.current
     if (!draw) return
-    if (mode === 'polygon' || mode === 'concrete') draw.changeMode('draw_polygon')
-    else if (mode === 'line') draw.changeMode('draw_line_string')
-    else draw.changeMode('simple_select')
-  }, [mode])
+    try {
+      if (mode === 'polygon' || mode === 'concrete') draw.changeMode('draw_polygon')
+      else if (mode === 'line') draw.changeMode('draw_line_string')
+      else draw.changeMode('simple_select')
+    } catch {
+      // draw not ready yet
+    }
+  }, [mode, mapReadyTick])
 
   // Render text annotations as markers
   useEffect(() => {
