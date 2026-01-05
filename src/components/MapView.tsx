@@ -646,14 +646,18 @@ export default function MapView() {
     if (!pendingMapFocus) return
     const map = mapRef.current
     if (!map) return
+    // Wait until map is fully loaded before flying (mapReadyTick > 0 means 'load' event fired)
+    if (mapReadyTick === 0 || !map.loaded()) return
     try {
       map.flyTo({
         center: [pendingMapFocus.lng, pendingMapFocus.lat],
         zoom: pendingMapFocus.zoom ?? Math.max(map.getZoom(), 18),
         essential: true,
       })
-    } catch {}
-    consumeMapFocus()
+      consumeMapFocus()
+    } catch {
+      // Don't consume if flyTo failed - will retry when mapReadyTick changes
+    }
   }, [pendingMapFocus, consumeMapFocus, mapReadyTick])
 
   // Capture unhandled rejections while initializing
