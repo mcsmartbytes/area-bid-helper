@@ -126,7 +126,6 @@ function QuoteMapPageInner() {
         const feature = data?.features?.[0]
         if (feature?.center?.length >= 2) {
           const [lng, lat] = feature.center
-          console.log('[Geocode] Success, requesting map focus:', { lng, lat, zoom: 19 })
           requestMapFocus({ lng, lat, zoom: 19, address: feature.place_name || targetAddress })
           lastAddressRef.current = targetAddress
           setGeocodeStatus('success')
