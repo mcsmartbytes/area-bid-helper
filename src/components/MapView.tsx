@@ -685,9 +685,22 @@ export default function MapView() {
     const draw = drawRef.current
     if (!draw) return
     try {
-      if (mode === 'polygon' || mode === 'concrete') draw.changeMode('draw_polygon')
-      else if (mode === 'line') draw.changeMode('draw_line_string')
-      else draw.changeMode('simple_select')
+      if (mode === 'polygon' || mode === 'concrete') {
+        draw.changeMode('draw_polygon')
+      } else if (mode === 'line') {
+        draw.changeMode('draw_line_string')
+      } else if (mode === 'freehand') {
+        // Freehand uses custom mouse handlers, keep draw in polygon mode
+        // so the freehand handlers can work without MapboxDraw interference
+        draw.changeMode('draw_polygon')
+      } else if (mode === 'pan') {
+        // Only switch to simple_select (hand/pan mode) when explicitly requested
+        draw.changeMode('simple_select')
+      } else {
+        // For other modes (text, height, stall), keep in simple_select but
+        // these modes have their own click handlers that take precedence
+        draw.changeMode('simple_select')
+      }
     } catch {
       // draw not ready yet
     }

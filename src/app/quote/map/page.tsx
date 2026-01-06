@@ -174,6 +174,41 @@ function QuoteMapPageInner() {
     setShowBidBuilder(true)
   }
 
+  // Get toMeasurementDoc from store
+  const toMeasurementDoc = useQuoteStore(s => s.toMeasurementDoc)
+  const geometries = useQuoteStore(s => s.geometries)
+  const lines = useQuoteStore(s => s.lines)
+  const total = useQuoteStore(s => s.total)
+
+  const handleSaveDraft = () => {
+    try {
+      const address = quoteAddress || addressParam || 'Untitled Quote'
+      const draft = {
+        id: `draft_${Date.now()}`,
+        name: address,
+        address: address,
+        industryId: industryId,
+        geometries: geometries,
+        lines: lines,
+        total: total,
+        savedAt: new Date().toISOString(),
+      }
+
+      // Get existing drafts
+      const existingDrafts = JSON.parse(localStorage.getItem('QUOTE_DRAFTS') || '[]')
+
+      // Add new draft (keep last 10)
+      const updatedDrafts = [draft, ...existingDrafts].slice(0, 10)
+      localStorage.setItem('QUOTE_DRAFTS', JSON.stringify(updatedDrafts))
+
+      // Show success feedback
+      alert(`Draft saved: ${address}\n\nTotal: $${Math.round(total).toLocaleString()}\nServices: ${lines.length}`)
+    } catch (error) {
+      console.error('Failed to save draft:', error)
+      alert('Failed to save draft. Please try again.')
+    }
+  }
+
   if (!mounted || !industryId) {
     return <div className="quote-layout-loading">Loading your services…</div>
   }
@@ -219,7 +254,7 @@ function QuoteMapPageInner() {
           <QuoteToolbar
             onSettings={() => setShowPricingConfig(true)}
             onSendQuote={handleSendQuote}
-            onSaveDraft={() => { /* TODO: implement save draft */ }}
+            onSaveDraft={handleSaveDraft}
             address={quoteAddress || addressParam}
             geocodeStatus={geocodeStatus}
             geocodeMessage={geocodeMessage}
