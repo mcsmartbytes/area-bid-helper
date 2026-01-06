@@ -59,6 +59,15 @@ function QuoteMapPageInner() {
 
   useEffect(() => {
     if (!mounted) return
+
+    // Check URL params for industry (embedded mode)
+    const urlIndustry = searchParams?.get('industry')
+    if (urlIndustry) {
+      try { localStorage.setItem('QUOTE_INDUSTRY', urlIndustry) } catch {}
+      setIndustryId(urlIndustry)
+      return
+    }
+
     try {
       const stored = localStorage.getItem('QUOTE_INDUSTRY') || null
       if (!stored) {
@@ -69,7 +78,7 @@ function QuoteMapPageInner() {
     } catch {
       setIndustryId(null)
     }
-  }, [router, mounted])
+  }, [router, mounted, searchParams])
 
   useEffect(() => {
     if (!industryId) return
@@ -168,17 +177,56 @@ function QuoteMapPageInner() {
     setShowBidBuilder(true)
   }
 
-  const handleSendQuote = () => {
-    // For now, open bid builder - in future this could send directly
-    createNewBid()
-    setShowBidBuilder(true)
-  }
-
-  // Get toMeasurementDoc from store
+  // Get quote data from store (needed for Send Quote and Save Draft)
   const toMeasurementDoc = useQuoteStore(s => s.toMeasurementDoc)
   const geometries = useQuoteStore(s => s.geometries)
   const lines = useQuoteStore(s => s.lines)
   const total = useQuoteStore(s => s.total)
+
+  const handleSendQuote = async () => {
+    // Check if embedded - if so, send to parent via postMessage
+    const isEmbedded = typeof window !== 'undefined' && window.parent !== window
+
+    if (isEmbedded) {
+      try {
+        const { integrationAPI } = await import('@/lib/integration')
+        if (integrationAPI) {
+          // Build measurement data from current state
+          const measurementData = {
+            totalArea: geometries
+              .filter(g => g.kind === 'POLYGON')
+              .reduce((sum, g) => sum + (g.measurementValue || 0), 0),
+            totalPerimeter: geometries
+              .filter(g => g.kind === 'POLYLINE')
+              .reduce((sum, g) => sum + (g.measurementValue || 0), 0),
+            unit: 'imperial' as const,
+            shapes: geometries.map(g => ({
+              id: g.id,
+              type: g.kind === 'POLYLINE' ? 'line' as const : 'polygon' as const,
+              area: g.kind === 'POLYGON' ? g.measurementValue : 0,
+              perimeter: g.kind === 'POLYLINE' ? g.measurementValue : 0,
+              coordinates: [] as [number, number][],
+            })),
+            heights: [],
+            notes: '',
+            timestamp: new Date().toISOString(),
+            // Include quote data
+            lines: lines,
+            total: total,
+            address: quoteAddress || addressParam,
+          }
+          integrationAPI.exportToQuote(measurementData as any)
+          return
+        }
+      } catch (err) {
+        console.error('Integration export failed:', err)
+      }
+    }
+
+    // Fallback: open bid builder
+    createNewBid()
+    setShowBidBuilder(true)
+  }
 
   const handleSaveDraft = () => {
     try {

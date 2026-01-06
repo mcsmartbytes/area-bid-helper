@@ -1,15 +1,36 @@
 "use client"
 
-import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { useEffect, useState, Suspense } from 'react'
 import { industryOptions } from '@/lib/quote/industries'
 
-export default function OnboardingPage() {
+function OnboardingContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [isHydrated, setIsHydrated] = useState(false)
 
   useEffect(() => {
     setIsHydrated(true)
+
+    // Check for industry in URL params first (for embedded mode)
+    const urlIndustry = searchParams?.get('industry')
+    if (urlIndustry) {
+      const isValid = industryOptions.some(opt => opt.id === urlIndustry)
+      if (isValid) {
+        try { localStorage.setItem('QUOTE_INDUSTRY', urlIndustry) } catch {}
+        // Preserve other URL params when redirecting
+        const address = searchParams?.get('address')
+        const embedded = searchParams?.get('embedded')
+        let redirectUrl = '/quote/new'
+        const params = new URLSearchParams()
+        if (address) params.set('address', address)
+        if (embedded) params.set('embedded', embedded)
+        if (params.toString()) redirectUrl += `?${params.toString()}`
+        router.replace(redirectUrl)
+        return
+      }
+    }
+
     try {
       const stored = localStorage.getItem('QUOTE_INDUSTRY')
       // Only skip onboarding if stored industry is valid
@@ -23,7 +44,7 @@ export default function OnboardingPage() {
         }
       }
     } catch {}
-  }, [router])
+  }, [router, searchParams])
 
   const handleSelect = (industryId: string) => {
     try { localStorage.setItem('QUOTE_INDUSTRY', industryId) } catch {}
@@ -78,5 +99,13 @@ export default function OnboardingPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function OnboardingPage() {
+  return (
+    <Suspense fallback={<div className="quote-layout-loading">Loading…</div>}>
+      <OnboardingContent />
+    </Suspense>
   )
 }
