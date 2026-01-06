@@ -192,6 +192,16 @@ function QuoteMapPageInner() {
         const { integrationAPI } = await import('@/lib/integration')
         if (integrationAPI) {
           // Build measurement data from current state
+          // Map lines to the format expected by sealn-super-site
+          const mappedLines = lines.map(line => ({
+            serviceId: line.serviceId,
+            serviceName: line.serviceName,
+            measurementValue: line.qty, // Map qty to measurementValue
+            rate: line.rate,
+            minimum: 0,
+            subtotal: line.subtotal,
+          }))
+
           const measurementData = {
             totalArea: geometries
               .filter(g => g.kind === 'POLYGON')
@@ -210,12 +220,15 @@ function QuoteMapPageInner() {
             heights: [],
             notes: '',
             timestamp: new Date().toISOString(),
-            // Include quote data
-            lines: lines,
+            // Include quote data with properly mapped lines
+            lines: mappedLines,
             total: total,
             address: quoteAddress || addressParam,
           }
           integrationAPI.exportToQuote(measurementData as any)
+
+          // Show feedback to user
+          alert('Quote sent to parent site! Click "Create Estimate" in the green banner.')
           return
         }
       } catch (err) {
