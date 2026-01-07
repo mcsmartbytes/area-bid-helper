@@ -128,17 +128,46 @@ export default function Toolbar() {
     if (isCompact) closeMobileMenu()
   }
 
+  // Tool icons and labels for dropdown
+  const toolConfig: Record<string, { icon: string; label: string; shortcut: string }> = {
+    freehand: { icon: '✎', label: 'Freehand', shortcut: 'F' },
+    polygon: { icon: '⬠', label: 'Polygon', shortcut: 'A' },
+    line: { icon: '／', label: 'Line', shortcut: 'L' },
+    text: { icon: 'T', label: 'Text', shortcut: 'T' },
+    height: { icon: '↕', label: 'Height', shortcut: 'H' },
+    pan: { icon: '🖱', label: 'Select/Pan', shortcut: 'V' },
+    stall: { icon: '▥', label: 'Stall Layout', shortcut: 'S' },
+    concrete: { icon: '▦', label: 'Concrete', shortcut: 'G' },
+  }
+
+  const currentTool = toolConfig[mode] || toolConfig.pan
+
   const toolbarControls = (
     <>
-      {/* Drawing Tools - Compact segmented */}
-      <div className="segmented" role="group" aria-label="Drawing modes">
-        <button className={'btn btn-compact' + (mode === 'freehand' ? ' active' : '')} onClick={() => setMode('freehand')} title="Freehand (F)">✎</button>
-        <button className={'btn btn-compact' + (mode === 'polygon' ? ' active' : '')} onClick={() => setMode('polygon')} title="Polygon (A)">⬠</button>
-        <button className={'btn btn-compact' + (mode === 'line' ? ' active' : '')} onClick={() => setMode('line')} title="Length (L)">／</button>
-        <button className={'btn btn-compact' + (mode === 'text' ? ' active' : '')} onClick={() => setMode('text')} title="Text (T)">T</button>
-        <button className={'btn btn-compact' + (mode === 'height' ? ' active' : '')} onClick={() => setMode('height')} title="Height (H)">↕</button>
-        <button className={'btn btn-compact' + (mode === 'pan' ? ' active' : '')} onClick={() => setMode('pan')} title="Pan (V)">🖱</button>
-      </div>
+      {/* Drawing Tools Dropdown */}
+      <span className="btn btn-dropdown btn-compact active" title="Drawing Tools" style={{ minWidth: 110 }}>
+        <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
+          <span>{currentTool.icon}</span>
+          <span>{currentTool.label}</span>
+        </label>
+        <select
+          value={mode}
+          onChange={(e) => {
+            const v = e.target.value
+            if (v) setMode(v as typeof mode)
+          }}
+          style={{ background: 'transparent', color: 'inherit', border: 'none', outline: 'none', cursor: 'pointer', width: 20 }}
+        >
+          <option value="freehand">✎ Freehand (F)</option>
+          <option value="polygon">⬠ Polygon (A)</option>
+          <option value="line">／ Line (L)</option>
+          <option value="text">T Text (T)</option>
+          <option value="height">↕ Height (H)</option>
+          <option value="pan">🖱 Select/Pan (V)</option>
+          <option value="stall">▥ Stall Layout (S)</option>
+          <option value="concrete">▦ Concrete (G)</option>
+        </select>
+      </span>
 
       {/* Shapes dropdown */}
       <span className="btn btn-dropdown btn-compact" title="Shapes">
