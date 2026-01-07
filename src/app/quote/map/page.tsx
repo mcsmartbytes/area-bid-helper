@@ -187,13 +187,19 @@ function QuoteMapPageInner() {
     // Check if embedded - if so, send to parent via postMessage
     const isEmbedded = typeof window !== 'undefined' && window.parent !== window
 
+    // Debug logging
+    console.log('handleSendQuote called')
+    console.log('lines:', lines)
+    console.log('geometries:', geometries)
+    console.log('total:', total)
+
     if (isEmbedded) {
       try {
         const { integrationAPI } = await import('@/lib/integration')
         if (integrationAPI) {
           // Build measurement data from current state
           // Map lines to the format expected by sealn-super-site
-          const mappedLines = lines.map(line => ({
+          let mappedLines = lines.map(line => ({
             serviceId: line.serviceId,
             serviceName: line.serviceName,
             measurementValue: line.qty, // Map qty to measurementValue
@@ -202,13 +208,45 @@ function QuoteMapPageInner() {
             subtotal: line.subtotal,
           }))
 
+          // If lines is empty but we have geometries, create lines from geometries
+          // This handles the case where sync hasn't completed yet
+          if (mappedLines.length === 0 && geometries.length > 0) {
+            const templates = useQuoteStore.getState().templates
+            const templateMap = new Map(templates.map(t => [t.id, t]))
+            const qtyByService = new Map<string, number>()
+
+            for (const g of geometries) {
+              qtyByService.set(g.serviceId, (qtyByService.get(g.serviceId) ?? 0) + (g.measurementValue ?? 0))
+            }
+
+            for (const [serviceId, qty] of qtyByService.entries()) {
+              const template = templateMap.get(serviceId)
+              if (template) {
+                const subtotal = Math.max(qty * template.defaultRate, template.minimumCharge || 0)
+                mappedLines.push({
+                  serviceId,
+                  serviceName: template.name,
+                  measurementValue: qty,
+                  rate: template.defaultRate,
+                  minimum: template.minimumCharge || 0,
+                  subtotal,
+                })
+              }
+            }
+            console.log('Created lines from geometries:', mappedLines)
+          }
+
+          const calculatedTotal = mappedLines.reduce((sum, l) => sum + l.subtotal, 0)
+          const totalArea = geometries
+            .filter(g => g.kind === 'POLYGON')
+            .reduce((sum, g) => sum + (g.measurementValue || 0), 0)
+          const totalPerimeter = geometries
+            .filter(g => g.kind === 'POLYLINE')
+            .reduce((sum, g) => sum + (g.measurementValue || 0), 0)
+
           const measurementData = {
-            totalArea: geometries
-              .filter(g => g.kind === 'POLYGON')
-              .reduce((sum, g) => sum + (g.measurementValue || 0), 0),
-            totalPerimeter: geometries
-              .filter(g => g.kind === 'POLYLINE')
-              .reduce((sum, g) => sum + (g.measurementValue || 0), 0),
+            totalArea,
+            totalPerimeter,
             unit: 'imperial' as const,
             shapes: geometries.map(g => ({
               id: g.id,
@@ -222,13 +260,15 @@ function QuoteMapPageInner() {
             timestamp: new Date().toISOString(),
             // Include quote data with properly mapped lines
             lines: mappedLines,
-            total: total,
+            total: calculatedTotal || total,
             address: quoteAddress || addressParam,
           }
+
+          console.log('Sending measurementData:', measurementData)
           integrationAPI.exportToQuote(measurementData as any)
 
           // Show feedback to user
-          alert('Quote sent to parent site! Click "Create Estimate" in the green banner.')
+          alert(`Quote sent! ${mappedLines.length} service(s), $${Math.round(calculatedTotal || total).toLocaleString()} total.\nClick "Create Estimate" in the green banner.`)
           return
         }
       } catch (err) {
