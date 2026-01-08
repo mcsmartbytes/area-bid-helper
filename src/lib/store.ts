@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 
 export type UnitSystem = 'metric' | 'imperial'
-export type Mode = 'pan' | 'polygon' | 'line' | 'freehand' | 'text' | 'height' | 'stall' | 'concrete'
+export type Mode = 'pan' | 'polygon' | 'line' | 'freehand' | 'text' | 'height' | 'stall' | 'concrete' | 'rectangle' | 'circle'
 
 export type MapStyleId =
   | 'auto'
